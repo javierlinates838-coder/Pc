@@ -1,7 +1,7 @@
 "use client";
 
-import type { PartCategory, ComponentMap } from "@/lib/types/components";
-import { componentsByCategory } from "@/lib/database";
+import type { PartCategory, ComponentMap, PCComponent } from "@/lib/types/components";
+import { componentsByCategory, getComponentSpecLines } from "@/lib/database";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -62,11 +62,21 @@ export function PartSelector() {
     return part.id;
   };
 
+  const getSelectedComponent = (category: PartCategory): PCComponent | undefined => {
+    const id = getSelectedId(category);
+    if (!id) return undefined;
+    return componentsByCategory[category].find((c) => c.id === id);
+  };
+
   return (
     <div className="space-y-3 sm:space-y-4">
       {BUILD_CATEGORIES.map((category) => {
         const selected = currentBuild[category];
         const hasSelection = !!selected;
+        const selectedComponent = getSelectedComponent(category);
+        const specLines = selectedComponent
+          ? getComponentSpecLines(selectedComponent).slice(0, 4)
+          : [];
 
         return (
           <div
@@ -104,6 +114,27 @@ export function PartSelector() {
                 </Button>
               )}
             </div>
+            {selectedComponent && (
+              <div className="mt-2 space-y-1">
+                {selectedComponent.specsSummary && (
+                  <p className="text-xs text-[var(--color-muted-foreground)]">
+                    {selectedComponent.specsSummary}
+                  </p>
+                )}
+                {specLines.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {specLines.map((spec) => (
+                      <span
+                        key={spec.label}
+                        className="rounded bg-[var(--color-secondary)] px-1.5 py-0.5 text-[10px] text-[var(--color-muted-foreground)]"
+                      >
+                        {spec.label}: {spec.value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}

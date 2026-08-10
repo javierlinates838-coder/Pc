@@ -38,6 +38,8 @@ export interface BaseComponent {
   pricing: PriceRange;
   releaseYear?: number;
   tags?: string[];
+  /** Short human-readable summary for UI / deal parsing */
+  specsSummary?: string;
 }
 
 export interface CPU extends BaseComponent {
