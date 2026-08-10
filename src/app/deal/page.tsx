@@ -14,6 +14,7 @@ import {
 import { parseDealListing } from "@/lib/reseller/analyzer";
 import { useBuildStore } from "@/lib/inventory/store";
 import { formatCurrency } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/page-header";
 
 const EXAMPLE_LISTING = `Ryzen 5 3600
 RTX 3060 12GB
@@ -58,15 +59,13 @@ export default function DealAnalyzerPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Deal Analyzer</h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Paste a listing to get buy/no-buy recommendations
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Deal Analyzer"
+        description="Paste a listing to get buy/no-buy recommendations"
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Listing Details</CardTitle>
@@ -102,7 +101,7 @@ export default function DealAnalyzerPage() {
                   <DealRatingBadge rating={deal.rating} />
                 </div>
               </CardHeader>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <p className="text-xs text-[var(--color-muted-foreground)]">
                     Listing Price

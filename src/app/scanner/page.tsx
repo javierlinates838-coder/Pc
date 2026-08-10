@@ -10,6 +10,7 @@ import { useBuildStore } from "@/lib/inventory/store";
 import type { ComponentMap } from "@/lib/types/components";
 import { Upload, Camera, Search } from "lucide-react";
 import type { ScanMatch } from "@/lib/image/scanner";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function ScannerPage() {
   const [scanResult, setScanResult] = useState<{
@@ -62,15 +63,13 @@ export default function ScannerPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Part Scanner</h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Upload a photo or enter text to identify PC components
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Part Scanner"
+        description="Upload a photo or enter text to identify PC components"
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

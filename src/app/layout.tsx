@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/sidebar";
-import { AppProviders } from "@/components/providers/app-providers";
+import { AppShell } from "@/components/layout/app-shell";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -10,6 +9,19 @@ export const metadata: Metadata = {
   title: "PC Flip Pro — Reseller Calculator",
   description:
     "Professional PC reseller compatibility, profit calculator, and deal analyzer",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PC Flip Pro",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#0a0e17",
 };
 
 export default function RootLayout({
@@ -20,14 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} antialiased`}>
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">
-            <div className="p-6 lg:p-8 max-w-7xl mx-auto">
-              <AppProviders>{children}</AppProviders>
-            </div>
-          </main>
-        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

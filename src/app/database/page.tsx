@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { useBuildStore } from "@/lib/inventory/store";
+import { PageHeader } from "@/components/layout/page-header";
 
 const CATEGORIES: { value: PartCategory | "all"; label: string }[] = [
   { value: "all", label: "All Categories" },
@@ -46,15 +47,13 @@ export default function DatabasePage() {
   }, [search, category]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Parts Database</h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          {componentDatabase.length} components — expandable local database
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Parts Database"
+        description={`${componentDatabase.length} components — expandable local database`}
+      />
 
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <Input
           placeholder="Search parts..."
           value={search}
@@ -76,7 +75,7 @@ export default function DatabasePage() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
         {filtered.map((component) => (
           <Card key={component.id} className="p-4">
             <div className="flex items-start justify-between mb-2">

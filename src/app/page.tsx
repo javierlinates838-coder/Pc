@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function DashboardPage() {
   const { currentBuild } = useBuildStore();
@@ -44,15 +45,13 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Overview of your PC flipping business
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your PC flipping business"
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <Card>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -162,24 +161,24 @@ export default function DashboardPage() {
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>Common reseller workflows</CardDescription>
           </CardHeader>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
             <Link href="/deal">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="h-11 w-full justify-start text-left">
                 Analyze a Deal
               </Button>
             </Link>
             <Link href="/scanner">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="h-11 w-full justify-start text-left">
                 Scan a Part
               </Button>
             </Link>
             <Link href="/profit">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="h-11 w-full justify-start text-left">
                 Calculate Profit
               </Button>
             </Link>
             <Link href="/inventory">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="h-11 w-full justify-start text-left">
                 View Inventory
               </Button>
             </Link>

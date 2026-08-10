@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSettingsStore, useInventoryStore } from "@/lib/inventory/store";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function SettingsPage() {
   const {
@@ -37,13 +38,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Configure defaults and manage data
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Settings"
+        description="Configure defaults and manage data"
+      />
 
       <Card>
         <CardHeader>
@@ -87,7 +86,7 @@ export default function SettingsPage() {
             Inventory is stored locally in your browser
           </CardDescription>
         </CardHeader>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <Button variant="outline" onClick={handleExport}>
             Export Inventory (JSON)
           </Button>

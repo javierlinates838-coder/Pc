@@ -9,6 +9,7 @@ import { calculateProfit } from "@/lib/reseller/profit";
 import { componentMapToEntries } from "@/lib/build/helpers";
 import { estimateCompletePcValue } from "@/lib/pricing/estimator";
 import { formatCurrency, formatPercent } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/page-header";
 import type { ResellerCosts } from "@/lib/types/reseller";
 
 export default function ProfitCalculatorPage() {
@@ -57,17 +58,13 @@ export default function ProfitCalculatorPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Profit Calculator
-        </h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Reseller mode — calculate ROI, break-even, and max purchase price
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Profit Calculator"
+        description="Reseller mode — calculate ROI, break-even, and max purchase price"
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Costs & Pricing</CardTitle>
@@ -78,8 +75,8 @@ export default function ProfitCalculatorPage() {
           </CardHeader>
           <div className="space-y-4">
             {fields.map(({ key, label }) => (
-              <div key={key} className="flex items-center gap-4">
-                <label className="w-44 text-sm text-[var(--color-muted-foreground)]">
+              <div key={key} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                <label className="text-sm font-medium text-[var(--color-muted-foreground)] sm:w-44 sm:shrink-0">
                   {label}
                 </label>
                 <Input

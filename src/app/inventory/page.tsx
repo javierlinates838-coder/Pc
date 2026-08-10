@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { calculateProfit } from "@/lib/reseller/profit";
 import { ProfitChart } from "@/components/inventory/profit-chart-loader";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function InventoryPage() {
   const { pcs, removePC } = useInventoryStore();
@@ -24,15 +25,13 @@ export default function InventoryPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">PC Inventory</h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Track all your PC flips and business metrics
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="PC Inventory"
+        description="Track all your PC flips and business metrics"
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card className="p-4 text-center">
           <p className="text-2xl font-bold">{stats.totalPCs}</p>
           <p className="text-xs text-[var(--color-muted-foreground)]">
@@ -113,7 +112,7 @@ export default function InventoryPage() {
           </CardDescription>
         </CardHeader>
         {pcs.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="table-scroll">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)]">

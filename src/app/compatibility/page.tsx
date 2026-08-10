@@ -9,6 +9,7 @@ import {
 } from "@/components/build/compatibility-results";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { analyzeCompatibility } from "@/lib/compatibility/engine";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function CompatibilityPage() {
   const { currentBuild } = useBuildStore();
@@ -18,17 +19,13 @@ export default function CompatibilityPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Compatibility Checker
-        </h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Real-time compatibility analysis across all component pairs
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Compatibility Checker"
+        description="Real-time compatibility analysis across all component pairs"
+      />
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3 xl:gap-6">
         <Card className="xl:col-span-1">
           <CardHeader>
             <CardTitle>Select Parts</CardTitle>

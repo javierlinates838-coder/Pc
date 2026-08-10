@@ -24,6 +24,7 @@ import {
 } from "@/lib/pricing/estimator";
 import { formatCurrency } from "@/lib/utils";
 import { VerdictBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function BuildAnalyzerPage() {
   const { currentBuild } = useBuildStore();
@@ -62,15 +63,13 @@ export default function BuildAnalyzerPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Build Analyzer</h1>
-        <p className="text-[var(--color-muted-foreground)] mt-1">
-          Select parts, check compatibility, and analyze resale potential
-        </p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="Build Analyzer"
+        description="Select parts, check compatibility, and analyze resale potential"
+      />
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3 xl:gap-6">
         <Card className="xl:col-span-1">
           <CardHeader>
             <CardTitle>Components</CardTitle>
@@ -96,8 +95,8 @@ export default function BuildAnalyzerPage() {
                     Based on performance, balance, upgradeability, and resale appeal
                   </CardDescription>
                 </CardHeader>
-                <div className="flex items-center gap-6">
-                  <div className="text-5xl font-bold text-[var(--color-primary)]">
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+                  <div className="text-4xl font-bold text-[var(--color-primary)] sm:text-5xl">
                     {quality.total}
                   </div>
                   <div className="flex-1">
@@ -137,7 +136,7 @@ export default function BuildAnalyzerPage() {
                 <CardHeader>
                   <CardTitle>Build Breakdown</CardTitle>
                 </CardHeader>
-                <div className="overflow-x-auto">
+                <div className="table-scroll">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--color-border)]">
@@ -229,7 +228,7 @@ export default function BuildAnalyzerPage() {
                   <CardTitle>Performance Estimate</CardTitle>
                   <CardDescription>{performance.disclaimer}</CardDescription>
                 </CardHeader>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <span className="text-[var(--color-muted-foreground)]">
                       Gaming 1080p:
@@ -316,7 +315,7 @@ export default function BuildAnalyzerPage() {
                     </li>
                   ))}
                 </ul>
-                <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                   <div>
                     <p className="text-[var(--color-muted-foreground)]">
                       Max Purchase

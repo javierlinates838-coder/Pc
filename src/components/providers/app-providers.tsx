@@ -36,11 +36,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="flex min-h-[40vh] items-center justify-center px-4">
         <div className="text-center">
-          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            Loading PC Flip Pro...
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
+          <p className="text-sm font-medium">Loading PC Flip Pro</p>
+          <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+            Preparing your reseller tools…
           </p>
         </div>
       </div>

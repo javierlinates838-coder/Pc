@@ -72,22 +72,22 @@ export function CompatibilitySummary({
   overallStatus: string;
 }) {
   return (
-    <div className="grid grid-cols-4 gap-3">
-      <Card className="text-center p-4">
-        <CardTitle className="text-2xl text-green-400">{compatibleCount}</CardTitle>
-        <p className="text-xs text-[var(--color-muted-foreground)] mt-1">Compatible</p>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <Card className="text-center p-3 sm:p-4">
+        <CardTitle className="text-xl sm:text-2xl text-green-400">{compatibleCount}</CardTitle>
+        <p className="text-[10px] sm:text-xs text-[var(--color-muted-foreground)] mt-1">Compatible</p>
       </Card>
-      <Card className="text-center p-4">
-        <CardTitle className="text-2xl text-amber-400">{warningCount}</CardTitle>
-        <p className="text-xs text-[var(--color-muted-foreground)] mt-1">Warnings</p>
+      <Card className="text-center p-3 sm:p-4">
+        <CardTitle className="text-xl sm:text-2xl text-amber-400">{warningCount}</CardTitle>
+        <p className="text-[10px] sm:text-xs text-[var(--color-muted-foreground)] mt-1">Warnings</p>
       </Card>
-      <Card className="text-center p-4">
-        <CardTitle className="text-2xl text-red-400">{incompatibleCount}</CardTitle>
-        <p className="text-xs text-[var(--color-muted-foreground)] mt-1">Incompatible</p>
+      <Card className="text-center p-3 sm:p-4">
+        <CardTitle className="text-xl sm:text-2xl text-red-400">{incompatibleCount}</CardTitle>
+        <p className="text-[10px] sm:text-xs text-[var(--color-muted-foreground)] mt-1">Incompatible</p>
       </Card>
-      <Card className="text-center p-4">
+      <Card className="flex flex-col items-center justify-center p-3 sm:p-4">
         <StatusBadge status={overallStatus as "compatible" | "warning" | "incompatible"} />
-        <p className="text-xs text-[var(--color-muted-foreground)] mt-2">Overall</p>
+        <p className="text-[10px] sm:text-xs text-[var(--color-muted-foreground)] mt-2">Overall</p>
       </Card>
     </div>
   );

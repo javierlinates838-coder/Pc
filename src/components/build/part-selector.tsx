@@ -63,37 +63,47 @@ export function PartSelector() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {BUILD_CATEGORIES.map((category) => {
         const selected = currentBuild[category];
         const hasSelection = !!selected;
 
         return (
-          <div key={category} className="flex items-center gap-3">
-            <label className="w-36 text-sm font-medium text-[var(--color-muted-foreground)] shrink-0">
+          <div
+            key={category}
+            className="rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-secondary)]/30 p-3 sm:border-0 sm:bg-transparent sm:p-0"
+          >
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)] sm:sr-only">
               {CATEGORY_LABELS[category]}
             </label>
-            <Select
-              value={getSelectedId(category)}
-              onChange={(e) => handleSelect(category, e.target.value)}
-              className="flex-1"
-            >
-              <option value="">Select {CATEGORY_LABELS[category]}...</option>
-              {componentsByCategory[category].map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-            {hasSelection && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removePart(category)}
+            <div className="flex items-stretch gap-2">
+              <Select
+                value={getSelectedId(category)}
+                onChange={(e) => handleSelect(category, e.target.value)}
+                className="min-w-0 flex-1"
+                aria-label={CATEGORY_LABELS[category]}
               >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
+                <option value="">
+                  {CATEGORY_LABELS[category]} — tap to select
+                </option>
+                {componentsByCategory[category].map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+              {hasSelection && (
+                <Button
+                  variant="outline"
+                  size="md"
+                  className="shrink-0 px-3"
+                  onClick={() => removePart(category)}
+                  aria-label={`Remove ${CATEGORY_LABELS[category]}`}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         );
       })}
