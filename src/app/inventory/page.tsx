@@ -1,6 +1,7 @@
 "use client";
 
 import { useInventoryStore } from "@/lib/inventory/store";
+import { useInventoryStats } from "@/lib/inventory/use-inventory-stats";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,8 @@ import {
 } from "recharts";
 
 export default function InventoryPage() {
-  const { pcs, removePC, getStats } = useInventoryStore();
-  const stats = getStats();
+  const { pcs, removePC } = useInventoryStore();
+  const stats = useInventoryStats();
 
   const chartData = pcs.map((pc) => {
     const profit = calculateProfit(pc.costs);

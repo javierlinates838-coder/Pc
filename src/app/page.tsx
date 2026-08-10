@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useBuildStore, useInventoryStore } from "@/lib/inventory/store";
+import { useBuildStore } from "@/lib/inventory/store";
+import { useInventoryStats } from "@/lib/inventory/use-inventory-stats";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
@@ -22,7 +23,7 @@ import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const { currentBuild } = useBuildStore();
-  const stats = useInventoryStore((s) => s.getStats());
+  const stats = useInventoryStats();
 
   const partCount = getPartCount(currentBuild);
   const compat = useMemo(
