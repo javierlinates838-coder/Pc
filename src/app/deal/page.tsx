@@ -82,10 +82,16 @@ export default function DealAnalyzerPage() {
             rows={10}
             placeholder="Paste listing here..."
           />
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleAnalyze}>Analyze Deal</Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button onClick={handleAnalyze} className="w-full sm:w-auto">
+              Analyze Deal
+            </Button>
             {analyzed && (
-              <Button variant="outline" onClick={handleLoadBuild}>
+              <Button
+                variant="outline"
+                onClick={handleLoadBuild}
+                className="w-full sm:w-auto"
+              >
                 Load into Build
               </Button>
             )}

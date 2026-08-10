@@ -1,0 +1,10 @@
+{
+  "name": "PC Flip Pro",
+  "short_name": "PC Flip Pro",
+  "description": "PC reseller compatibility, profit calculator, and deal analyzer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#0a0e17",
+  "orientation": "portrait-primary"
+}

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "PC Flip Pro",
   },
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
