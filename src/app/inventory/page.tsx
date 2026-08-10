@@ -7,15 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { calculateProfit } from "@/lib/reseller/profit";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+import { ProfitChart } from "@/components/inventory/profit-chart-loader";
 
 export default function InventoryPage() {
   const { pcs, removePC } = useInventoryStore();
@@ -107,22 +99,7 @@ export default function InventoryPage() {
           <CardHeader>
             <CardTitle>Profit Overview</CardTitle>
           </CardHeader>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-              <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{
-                  background: "#111827",
-                  border: "1px solid #1e293b",
-                  borderRadius: 8,
-                }}
-              />
-              <Bar dataKey="invested" fill="#3b82f6" name="Invested" />
-              <Bar dataKey="profit" fill="#22c55e" name="Profit" />
-            </BarChart>
-          </ResponsiveContainer>
+          <ProfitChart data={chartData} />
         </Card>
       )}
 

@@ -1,13 +1,13 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { PCBuild, ComponentMap, BuildPartEntry, Condition, Storage } from "@/lib/types/components";
 import type { ResellerCosts } from "@/lib/types/reseller";
 import type { SavedInventoryPC } from "@/lib/types/inventory";
 import { calculateProfit } from "@/lib/reseller/profit";
 import { estimateCompletePcValue } from "@/lib/pricing/estimator";
-import { v4 as uuidv4 } from "uuid";
+import { createId, safeLocalStorage } from "@/lib/inventory/persist-storage";
 
 function buildToEntries(parts: ComponentMap): BuildPartEntry[] {
   const entries: BuildPartEntry[] = [];
@@ -99,10 +99,10 @@ export const useInventoryStore = create<InventoryStore>()(
         });
 
         const pc: SavedInventoryPC = {
-          id: uuidv4(),
+          id: createId(),
           name: name ?? `PC #${get().pcs.length + 1}`,
           build: {
-            id: uuidv4(),
+            id: createId(),
             name: name ?? `PC #${get().pcs.length + 1}`,
             parts: Object.fromEntries(
               Object.entries(build).map(([k, v]) => [
@@ -137,7 +137,11 @@ export const useInventoryStore = create<InventoryStore>()(
       removePC: (id) =>
         set((state) => ({ pcs: state.pcs.filter((pc) => pc.id !== id) })),
     }),
-    { name: "pc-reseller-inventory" }
+    {
+      name: "pc-reseller-inventory",
+      storage: createJSONStorage(() => safeLocalStorage),
+      skipHydration: true,
+    }
   )
 );
 
@@ -149,6 +153,10 @@ export const useSettingsStore = create<SettingsStore>()(
       setDefaultMarketplaceFee: (fee) => set({ defaultMarketplaceFee: fee }),
       setDefaultShippingCost: (cost) => set({ defaultShippingCost: cost }),
     }),
-    { name: "pc-reseller-settings" }
+    {
+      name: "pc-reseller-settings",
+      storage: createJSONStorage(() => safeLocalStorage),
+      skipHydration: true,
+    }
   )
 );
