@@ -17,14 +17,17 @@ import {
   TrendingUp,
   Cpu,
   ArrowRight,
+  Database,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
+import { getDatabaseStats } from "@/lib/database";
 
 export default function DashboardPage() {
   const { currentBuild } = useBuildStore();
   const stats = useInventoryStats();
+  const dbStats = getDatabaseStats();
 
   const partCount = getPartCount(currentBuild);
   const compat = useMemo(
@@ -48,7 +51,7 @@ export default function DashboardPage() {
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Dashboard"
-        description="Overview of your PC flipping business"
+        description={`Overview of your PC flipping business · ${dbStats.total} parts in database`}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
@@ -180,6 +183,12 @@ export default function DashboardPage() {
             <Link href="/inventory">
               <Button variant="outline" className="h-11 w-full justify-start text-left">
                 View Inventory
+              </Button>
+            </Link>
+            <Link href="/database">
+              <Button variant="outline" className="h-11 w-full justify-start text-left">
+                <Database className="mr-2 h-4 w-4 shrink-0" />
+                Browse {dbStats.total} Parts
               </Button>
             </Link>
           </div>

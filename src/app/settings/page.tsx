@@ -4,9 +4,11 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSettingsStore, useInventoryStore } from "@/lib/inventory/store";
+import { getDatabaseStats } from "@/lib/database";
 import { PageHeader } from "@/components/layout/page-header";
 
 export default function SettingsPage() {
+  const dbStats = getDatabaseStats();
   const {
     defaultMarketplaceFee,
     defaultShippingCost,
@@ -133,8 +135,9 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--color-muted-foreground)]">
           PC Flip Pro v0.1.0 — Professional PC Reseller Compatibility & Profit
           Calculator. All compatibility checks run locally with no API dependency.
-          Component database contains {">"} 60 common parts and is designed for
-          easy expansion.
+          Component database contains {dbStats.total} parts across{" "}
+          {Object.keys(dbStats.byCategory).length} categories and is designed
+          for easy expansion.
         </p>
       </Card>
     </div>

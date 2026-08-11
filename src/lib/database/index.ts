@@ -24,6 +24,9 @@ import { pcCases } from "./cases";
 import { caseExtended } from "./cases/extended";
 import { cpuCoolers } from "./coolers";
 import { coolerExtended } from "./coolers/extended";
+import { cpuBatch2 } from "./cpus/batch2";
+import { gpuBatch2 } from "./gpus/batch2";
+import { motherboardBatch2 } from "./motherboards/batch2";
 import { caseFans, wifiModules, operatingSystems } from "./misc";
 
 export const componentDatabase: PCComponent[] = [
@@ -31,14 +34,17 @@ export const componentDatabase: PCComponent[] = [
   ...intelCPUs,
   ...amdRyzenExtended,
   ...intelExtended,
+  ...cpuBatch2,
   ...nvidiaGPUs,
   ...amdGPUs,
   ...nvidiaExtended,
   ...amdGpuExtended,
+  ...gpuBatch2,
   ...am4Motherboards,
   ...am5Motherboards,
   ...intelMotherboards,
   ...motherboardExtended,
+  ...motherboardBatch2,
   ...ddr4Ram,
   ...ddr5Ram,
   ...ramExtended,
