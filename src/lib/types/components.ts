@@ -117,7 +117,7 @@ export interface Cooler extends BaseComponent {
 export interface PSU extends BaseComponent {
   category: "psu";
   wattage: number;
-  efficiency: "Bronze" | "Gold" | "Platinum" | "Titanium";
+  efficiency: "Bronze" | "Gold" | "Platinum" | "Titanium" | "White";
   modular: "non-modular" | "semi-modular" | "fully-modular";
   formFactor: "ATX" | "SFX";
   cpuConnectors: string[];

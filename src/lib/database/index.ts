@@ -16,18 +16,24 @@ import {
 import { motherboardExtended } from "./motherboards/extended";
 import { ddr4Ram, ddr5Ram } from "./ram";
 import { ramExtended } from "./ram/extended";
+import { ramBatch3 } from "./ram/batch3";
 import { nvmeSSDs, sataSSDs, hdds } from "./storage";
 import { storageExtended } from "./storage/extended";
+import { storageBatch3 } from "./storage/batch3";
 import { psus } from "./psus";
 import { psuExtended } from "./psus/extended";
+import { psuBatch3 } from "./psus/batch3";
 import { pcCases } from "./cases";
 import { caseExtended } from "./cases/extended";
+import { caseBatch3 } from "./cases/batch3";
 import { cpuCoolers } from "./coolers";
 import { coolerExtended } from "./coolers/extended";
+import { coolerBatch3 } from "./coolers/batch3";
 import { cpuBatch2 } from "./cpus/batch2";
 import { gpuBatch2 } from "./gpus/batch2";
 import { motherboardBatch2 } from "./motherboards/batch2";
 import { caseFans, wifiModules, operatingSystems } from "./misc";
+import { fansBatch3, wifiBatch3 } from "./misc/batch3";
 
 export const componentDatabase: PCComponent[] = [
   ...amdRyzenCPUs,
@@ -48,18 +54,25 @@ export const componentDatabase: PCComponent[] = [
   ...ddr4Ram,
   ...ddr5Ram,
   ...ramExtended,
+  ...ramBatch3,
   ...nvmeSSDs,
   ...sataSSDs,
   ...hdds,
   ...storageExtended,
+  ...storageBatch3,
   ...psus,
   ...psuExtended,
+  ...psuBatch3,
   ...pcCases,
   ...caseExtended,
+  ...caseBatch3,
   ...cpuCoolers,
   ...coolerExtended,
+  ...coolerBatch3,
   ...caseFans,
+  ...fansBatch3,
   ...wifiModules,
+  ...wifiBatch3,
   ...operatingSystems,
 ];
 
