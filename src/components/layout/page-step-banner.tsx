@@ -3,11 +3,14 @@
 import { usePathname } from "next/navigation";
 import { getWorkflowStep } from "./nav-config";
 
+/** Hide on pages that already show step context in the page body */
+const HIDE_ON = ["/build", "/profit"];
+
 export function PageStepBanner() {
   const pathname = usePathname();
   const step = getWorkflowStep(pathname);
 
-  if (!step || pathname === "/") return null;
+  if (!step || pathname === "/" || HIDE_ON.includes(pathname)) return null;
 
   return (
     <div className="mb-4 rounded-xl border border-dashed border-[var(--color-primary)]/35 bg-[var(--color-primary)]/5 px-4 py-3">

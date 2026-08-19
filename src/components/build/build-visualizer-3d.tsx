@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Edges, Grid, Html, OrbitControls } from "@react-three/drei";
+import { Edges, Grid, OrbitControls } from "@react-three/drei";
 import type { PointLight } from "three";
 import type { VisualizerSceneData } from "@/lib/build/visualizer-scene";
 
@@ -83,7 +83,7 @@ function FanSlot({
 }
 
 function CaseScene({ scene, rgbEnabled, rgbHue }: BuildVisualizer3DProps) {
-  const { labels, hasParts, gpuScale, gpuSlotHeight, coolerScale, coolerIsAio, fanCount } =
+  const { hasParts, gpuScale, gpuSlotHeight, coolerScale, coolerIsAio, fanCount, labels } =
     scene;
 
   const gpuWidth = 0.55 * gpuScale;
@@ -202,37 +202,14 @@ function CaseScene({ scene, rgbEnabled, rgbHue }: BuildVisualizer3DProps) {
           <FanSlot key={i} position={pos} rgb={rgbEnabled && scene.hasRgb} />
         ))}
 
-      {labels.map((label) => (
-        <Html
-          key={label.id}
-          position={[
-            (label.x - 0.5) * 2.3,
-            label.y * 1.85 + 0.1,
-            (label.z - 0.5) * 1.1,
-          ]}
-          center
-          distanceFactor={7}
-          style={{ pointerEvents: "none" }}
-        >
-          <div
-            className="rounded-lg border border-[#ff4d9d]/50 bg-[#0a0610]/95 px-2.5 py-1.5 text-[10px] leading-tight shadow-[0_0_20px_rgba(255,77,157,0.35)] backdrop-blur-md"
-          >
-            <p className="font-bold text-white">{label.text}</p>
-            {label.subtext && (
-              <p className="text-[9px] text-[#f9a8d4]">{label.subtext}</p>
-            )}
-          </div>
-        </Html>
-      ))}
-
       <OrbitControls
         enablePan={false}
         minDistance={2.8}
         maxDistance={6.5}
         maxPolarAngle={Math.PI / 1.75}
         minPolarAngle={0.25}
-        autoRotate={!hasParts}
-        autoRotateSpeed={0.4}
+        autoRotate={hasParts}
+        autoRotateSpeed={0.35}
       />
     </>
   );
