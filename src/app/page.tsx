@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useBuildStore } from "@/lib/inventory/store";
 import { useInventoryStats } from "@/lib/inventory/use-inventory-stats";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,12 +20,12 @@ import {
   ArrowRight,
   Database,
 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { getDatabaseStats } from "@/lib/database";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { currentBuild, savedBuilds, loadSavedBuild } = useBuildStore();
   const stats = useInventoryStats();
   const dbStats = getDatabaseStats();
@@ -46,6 +47,11 @@ export default function DashboardPage() {
     () => estimateCompletePcValue(entries),
     [entries]
   );
+
+  const openSavedBuild = (id: string) => {
+    loadSavedBuild(id);
+    router.push("/build");
+  };
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -125,15 +131,14 @@ export default function DashboardPage() {
           </CardHeader>
           <div className="flex flex-wrap gap-2">
             {savedBuilds.map((b) => (
-              <Link key={b.id} href="/build">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => loadSavedBuild(b.id)}
-                >
-                  {b.name}
-                </Button>
-              </Link>
+              <Button
+                key={b.id}
+                variant="outline"
+                size="sm"
+                onClick={() => openSavedBuild(b.id)}
+              >
+                {b.name}
+              </Button>
             ))}
           </div>
         </Card>
@@ -170,16 +175,18 @@ export default function DashboardPage() {
                   Value: {formatCurrency(value.min)}–{formatCurrency(value.max)}
                 </Badge>
               </div>
-              <Link href="/build">
-                <Button variant="outline" size="sm">
-                  Open Build Analyzer <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/build")}
+              >
+                Open Build Analyzer <ArrowRight className="w-4 h-4" />
+              </Button>
             </div>
           ) : (
-            <Link href="/build">
-              <Button>Start New Build</Button>
-            </Link>
+            <Button onClick={() => router.push("/build")}>
+              Start New Build
+            </Button>
           )}
         </Card>
 
@@ -189,32 +196,42 @@ export default function DashboardPage() {
             <CardDescription>Common reseller workflows</CardDescription>
           </CardHeader>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-            <Link href="/deal">
-              <Button variant="outline" className="h-11 w-full justify-start text-left">
-                Analyze a Deal
-              </Button>
-            </Link>
-            <Link href="/scanner">
-              <Button variant="outline" className="h-11 w-full justify-start text-left">
-                Scan a Part
-              </Button>
-            </Link>
-            <Link href="/profit">
-              <Button variant="outline" className="h-11 w-full justify-start text-left">
-                Calculate Profit
-              </Button>
-            </Link>
-            <Link href="/inventory">
-              <Button variant="outline" className="h-11 w-full justify-start text-left">
-                View Inventory
-              </Button>
-            </Link>
-            <Link href="/database">
-              <Button variant="outline" className="h-11 w-full justify-start text-left">
-                <Database className="mr-2 h-4 w-4 shrink-0" />
-                Browse {dbStats.total} Parts
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              className="h-11 w-full justify-start text-left"
+              onClick={() => router.push("/deal")}
+            >
+              Analyze a Deal
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 w-full justify-start text-left"
+              onClick={() => router.push("/scanner")}
+            >
+              Scan a Part
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 w-full justify-start text-left"
+              onClick={() => router.push("/profit")}
+            >
+              Calculate Profit
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 w-full justify-start text-left"
+              onClick={() => router.push("/inventory")}
+            >
+              View Inventory
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 w-full justify-start text-left"
+              onClick={() => router.push("/database")}
+            >
+              <Database className="mr-2 h-4 w-4 shrink-0" />
+              Browse {dbStats.total} Parts
+            </Button>
           </div>
         </Card>
       </div>

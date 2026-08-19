@@ -15,9 +15,20 @@ export function ListingGeneratorPanel({ listing }: ListingGeneratorPanelProps) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const copy = async (text: string, key: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    }
   };
 
   return (

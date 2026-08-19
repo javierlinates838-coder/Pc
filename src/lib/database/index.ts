@@ -108,7 +108,10 @@ export function searchComponents(
   return pool.filter((c) => getSearchableText(c).includes(normalized));
 }
 
-export function fuzzyMatchComponent(text: string): PCComponent[] {
+export function fuzzyMatchComponent(
+  text: string,
+  minScore = 8
+): PCComponent[] {
   const normalized = text
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
@@ -142,10 +145,52 @@ export function fuzzyMatchComponent(text: string): PCComponent[] {
   });
 
   return scored
-    .filter((s) => s.score >= 4)
+    .filter((s) => s.score >= minScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, 10)
     .map((s) => s.component);
+}
+
+export function fuzzyMatchComponentScored(
+  text: string,
+  minScore = 8
+): { component: PCComponent; score: number }[] {
+  const normalized = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return [];
+
+  const tokens = normalized.split(" ").filter((t) => t.length > 1);
+
+  const scored = componentDatabase.map((component) => {
+    const haystack = getSearchableText(component);
+    let score = 0;
+
+    const name = component.name.toLowerCase();
+    if (normalized.includes(name) || name.includes(normalized)) {
+      score += 100;
+    }
+
+    for (const token of tokens) {
+      if (haystack.includes(token)) score += token.length;
+    }
+
+    const modelMatch = name.match(/\d{4}[a-z]?|\d{3,4}xt?/gi);
+    if (modelMatch) {
+      for (const m of modelMatch) {
+        if (normalized.includes(m.toLowerCase())) score += 10;
+      }
+    }
+
+    return { component, score };
+  });
+
+  return scored
+    .filter((s) => s.score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
 }
 
 export function getDatabaseStats() {

@@ -1,5 +1,8 @@
 import type { ComponentMap } from "@/lib/types/components";
-import { fuzzyMatchComponent, searchComponents } from "@/lib/database";
+import {
+  fuzzyMatchComponentScored,
+  searchComponents,
+} from "@/lib/database";
 import type { CPU, GPU, RAM, Storage, Motherboard, Cooler, PSU, Case } from "@/lib/types/components";
 
 export type ListingConditionHint = "new" | "like-new" | "used" | "fair" | "parts" | "unknown";
@@ -70,12 +73,17 @@ const GPU_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\b(\d{4})\s*xt\b/i, query: "rx $1 xt" },
 ];
 
+/** Known chipset codes — avoids false matches on random numbers */
 const BOARD_PATTERNS: { pattern: RegExp; query: string }[] = [
-  { pattern: /\bb(\d{3,4})m?\b/i, query: "b$1" },
-  { pattern: /\bz(\d{3,4})\b/i, query: "z$1" },
-  { pattern: /\bx(\d{3,4})\b/i, query: "x$1" },
-  { pattern: /\bh(\d{3,4})\b/i, query: "h$1" },
+  { pattern: /\bb(450|550|650|760)\b/i, query: "b$1" },
+  { pattern: /\bz(390|490|590|690|790)\b/i, query: "z$1" },
+  { pattern: /\bx(470|570|670)\b/i, query: "x$1" },
+  { pattern: /\bh(410|510|610)\b/i, query: "h$1" },
+  { pattern: /\b(a320|b350|x370|b450|b550|x570)\b/i, query: "$1" },
 ];
+
+const LINE_MATCH_MIN_SCORE = 12;
+const BLOB_MATCH_MIN_SCORE = 35;
 
 export function extractListingPrice(text: string): number {
   const asking = text.match(/(?:asking|obo|price|listed at)\s*[:.]?\s*\$[\d,]+/gi);
@@ -140,9 +148,12 @@ function detectHints(text: string): ListingHints {
       /\bno gpu|without gpu|cpu only|no graphics|igpu only|integrated graphics only\b/.test(
         lower
       ),
-    integratedGraphicsOnly: /\bintegrated graphics|apu|5600g|7600\b/.test(lower),
+    integratedGraphicsOnly:
+      /\bintegrated graphics|\bapu\b|5600g|7600g|5700g|8600g\b/.test(lower),
     miningRisk:
-      /\bmining|miner|rig|hash|eth|hiveos|nicehash|24\/7|farm\b/.test(lower),
+      /\bmining|miner|hashrate|hiveos|nicehash|24\/7|mining farm|gpu farm\b/.test(
+        lower
+      ),
     localPickupOnly: /\blocal only|pickup only|no shipping|cash only\b/.test(
       lower
     ),
@@ -156,7 +167,7 @@ function detectHints(text: string): ListingHints {
   };
 }
 
-function assignPart(parts: ComponentMap, match: ReturnType<typeof fuzzyMatchComponent>[0]) {
+function assignPart(parts: ComponentMap, match: { id: string; category: string; name: string }) {
   if (match.category === "cpu" && !parts.cpu) parts.cpu = match as CPU;
   if (match.category === "gpu" && !parts.gpu) parts.gpu = match as GPU;
   if (match.category === "motherboard" && !parts.motherboard)
@@ -170,6 +181,15 @@ function assignPart(parts: ComponentMap, match: ReturnType<typeof fuzzyMatchComp
   if (match.category === "cooler" && !parts.cooler) parts.cooler = match as Cooler;
   if (match.category === "psu" && !parts.psu) parts.psu = match as PSU;
   if (match.category === "case" && !parts.case) parts.case = match as Case;
+}
+
+function countDetectedParts(parts: ComponentMap): number {
+  let n = 0;
+  for (const [key, value] of Object.entries(parts)) {
+    if (key === "storage" && Array.isArray(value)) n += value.length;
+    else if (value) n += 1;
+  }
+  return n;
 }
 
 export function scrapeListingText(text: string): ListingParseResult {
@@ -195,17 +215,17 @@ export function scrapeListingText(text: string): ListingParseResult {
 
     let matched = false;
     for (const q of queries) {
-      const fuzzy = fuzzyMatchComponent(q);
+      const fuzzy = fuzzyMatchComponentScored(q, LINE_MATCH_MIN_SCORE);
       if (fuzzy.length > 0) {
-        assignPart(parts, fuzzy[0]);
-        if (!parsedPartNames.includes(fuzzy[0].name)) {
-          parsedPartNames.push(fuzzy[0].name);
+        assignPart(parts, fuzzy[0].component);
+        if (!parsedPartNames.includes(fuzzy[0].component.name)) {
+          parsedPartNames.push(fuzzy[0].component.name);
         }
         matched = true;
         break;
       }
       const search = searchComponents(q);
-      if (search.length > 0) {
+      if (search.length > 0 && q.length >= 4) {
         assignPart(parts, search[0]);
         if (!parsedPartNames.includes(search[0].name)) {
           parsedPartNames.push(search[0].name);
@@ -220,11 +240,15 @@ export function scrapeListingText(text: string): ListingParseResult {
     }
   }
 
-  // Whole-text fallback pass (PCPartPicker-style full blob)
-  const blobMatches = fuzzyMatchComponent(normalized);
-  for (const m of blobMatches.slice(0, 8)) {
-    assignPart(parts, m);
-    if (!parsedPartNames.includes(m.name)) parsedPartNames.push(m.name);
+  // Strict blob fallback only when line parsing found almost nothing
+  if (countDetectedParts(parts) < 2) {
+    const blobMatches = fuzzyMatchComponentScored(normalized, BLOB_MATCH_MIN_SCORE);
+    for (const { component } of blobMatches.slice(0, 6)) {
+      assignPart(parts, component);
+      if (!parsedPartNames.includes(component.name)) {
+        parsedPartNames.push(component.name);
+      }
+    }
   }
 
   return {

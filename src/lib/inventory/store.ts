@@ -40,7 +40,7 @@ interface BuildStore {
   setBuildName: (name: string) => void;
   clearBuild: () => void;
   loadBuild: (parts: ComponentMap, name?: string) => void;
-  saveCurrentBuild: () => void;
+  saveCurrentBuild: () => boolean;
   loadSavedBuild: (id: string) => void;
   deleteSavedBuild: (id: string) => void;
 }
@@ -105,7 +105,7 @@ export const useBuildStore = create<BuildStore>()(
         }),
       saveCurrentBuild: () => {
         const { currentBuild, buildName, savedBuilds } = get();
-        if (Object.keys(currentBuild).length === 0) return;
+        if (Object.keys(currentBuild).length === 0) return false;
         const existing = savedBuilds.find((b) => b.name === buildName);
         if (existing) {
           set({
@@ -119,7 +119,7 @@ export const useBuildStore = create<BuildStore>()(
                 : b
             ),
           });
-          return;
+          return true;
         }
         const snapshot: SavedBuildSnapshot = {
           id: createId(),
@@ -129,6 +129,7 @@ export const useBuildStore = create<BuildStore>()(
           updatedAt: new Date().toISOString(),
         };
         set({ savedBuilds: [...savedBuilds, snapshot] });
+        return true;
       },
       loadSavedBuild: (id) => {
         const snap = get().savedBuilds.find((b) => b.id === id);

@@ -108,24 +108,24 @@ export function buildDealIntelligence(
     checklist.push("Confirm motherboard chipset matches CPU (BIOS flash for AM4?)");
   }
 
-  // Strengths
+  // Part-specific intel — one strength + one caution max per component
   for (const [key, value] of Object.entries(parts)) {
     if (!value) continue;
     const components = Array.isArray(value) ? value : [value];
     for (const c of components) {
       const intel = getPartIntel(c);
-      for (const s of intel.strengths) {
+      if (intel.strengths[0]) {
         strengths.push({
           severity: "positive",
           title: c.name,
-          detail: s,
+          detail: intel.strengths[0],
         });
       }
-      for (const f of intel.redFlags) {
+      if (intel.redFlags[0]) {
         redFlags.push({
           severity: "warning",
           title: c.name,
-          detail: f,
+          detail: intel.redFlags[0],
         });
       }
     }
@@ -169,16 +169,6 @@ export function buildDealIntelligence(
   for (const c of defaultChecks) {
     if (!checklist.includes(c)) checklist.push(c);
   }
-
-  competitorGaps.push(
-    "Rig Flip / BuildFlipper: no live compatibility engine — we validate socket, PSU, case clearance locally"
-  );
-  competitorGaps.push(
-    "PCPartPicker: no flip profit or platform fee matrix — we compare 12 channels instantly"
-  );
-  competitorGaps.push(
-    "Spreadsheet flips: no mining/OEM red flags — our scraper reads listing psychology"
-  );
 
   const bestPlatforms: string[] = [];
   if (estimatedResale >= 800) bestPlatforms.push("eBay shipped", "FB shipped");
