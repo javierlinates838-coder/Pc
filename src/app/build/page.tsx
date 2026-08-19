@@ -1,14 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
-import { useBuildStore } from "@/lib/inventory/store";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useBuildStore, useSettingsStore } from "@/lib/inventory/store";
 import { PartSelector } from "@/components/build/part-selector";
 import {
   CompatibilityResults,
   CompatibilitySummary,
 } from "@/components/build/compatibility-results";
+import { BuildRigHeader } from "@/components/build/build-rig-header";
+import { BuildVisualizer } from "@/components/build/build-visualizer";
+import { BuildFinancialBar } from "@/components/build/build-financial-bar";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { analyzeCompatibility } from "@/lib/compatibility/engine";
 import {
   calculateBuildQualityScore,
@@ -16,18 +21,38 @@ import {
   generateResellerRecommendation,
   getUpgradeRecommendations,
 } from "@/lib/reseller/analyzer";
-import { componentMapToEntries } from "@/lib/build/helpers";
+import { componentMapToEntries, getPartCount } from "@/lib/build/helpers";
+import { getBuildFinancialSummary } from "@/lib/build/financial-summary";
+import { getVisualizerMeta } from "@/lib/build/visualizer-labels";
 import {
-  buildPartValueBreakdown,
   compareValueStrategies,
   estimatePartValue,
 } from "@/lib/pricing/estimator";
 import { formatCurrency } from "@/lib/utils";
 import { VerdictBadge } from "@/components/ui/status-badge";
-import { PageHeader } from "@/components/layout/page-header";
 
 export default function BuildAnalyzerPage() {
-  const { currentBuild } = useBuildStore();
+  const { currentBuild, buildName, setBuildName } = useBuildStore();
+  const { defaultShippingCost } = useSettingsStore();
+  const [partsOpen, setPartsOpen] = useState(true);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+
+  const partCount = getPartCount(currentBuild);
+  const entries = useMemo(
+    () => componentMapToEntries(currentBuild),
+    [currentBuild]
+  );
+  const hasParts = entries.length > 0;
+
+  const visualizerMeta = useMemo(
+    () => getVisualizerMeta(currentBuild),
+    [currentBuild]
+  );
+
+  const financials = useMemo(
+    () => getBuildFinancialSummary(entries, defaultShippingCost),
+    [entries, defaultShippingCost]
+  );
 
   const compat = useMemo(
     () => analyzeCompatibility(currentBuild),
@@ -40,14 +65,6 @@ export default function BuildAnalyzerPage() {
   const performance = useMemo(
     () => estimatePerformance(currentBuild),
     [currentBuild]
-  );
-  const entries = useMemo(
-    () => componentMapToEntries(currentBuild),
-    [currentBuild]
-  );
-  const partValues = useMemo(
-    () => buildPartValueBreakdown(entries),
-    [entries]
   );
   const strategy = useMemo(
     () => compareValueStrategies(entries),
@@ -63,306 +80,263 @@ export default function BuildAnalyzerPage() {
   );
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <PageHeader
-        title="Build Analyzer"
-        description="Select parts, check compatibility, and analyze resale potential"
+    <div className="space-y-4 sm:space-y-5">
+      <BuildRigHeader
+        buildName={buildName}
+        onNameChange={setBuildName}
       />
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3 xl:gap-6">
-        <Card className="xl:col-span-1">
-          <CardHeader>
-            <CardTitle>Components</CardTitle>
-            <CardDescription>Select or change build parts</CardDescription>
-          </CardHeader>
-          <PartSelector />
-        </Card>
+      <BuildVisualizer meta={visualizerMeta} hasParts={hasParts} />
 
-        <div className="xl:col-span-2 space-y-6">
-          {entries.length > 0 && (
-            <>
-              <CompatibilitySummary
-                compatibleCount={compat.compatibleCount}
-                warningCount={compat.warningCount}
-                incompatibleCount={compat.incompatibleCount}
-                overallStatus={compat.overallStatus}
-              />
+      {hasParts && (
+        <BuildFinancialBar
+          partsTotal={financials.partsTotal}
+          costTotal={financials.costTotal}
+          listPrice={financials.listPrice}
+          profit={financials.profit}
+        />
+      )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Build Quality Score</CardTitle>
-                  <CardDescription>
-                    Based on performance, balance, upgradeability, and resale appeal
-                  </CardDescription>
-                </CardHeader>
-                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
-                  <div className="text-4xl font-bold text-[var(--color-primary)] sm:text-5xl">
-                    {quality.total}
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-3 rounded-full bg-[var(--color-secondary)] overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-[var(--color-primary)] transition-all"
-                        style={{ width: `${quality.total}%` }}
-                      />
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
+        <button
+          type="button"
+          onClick={() => setPartsOpen(!partsOpen)}
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+        >
+          <div>
+            <p className="text-sm font-semibold">Components</p>
+            <p className="text-[10px] text-[var(--color-muted-foreground)]">
+              {partCount > 0
+                ? `${partCount} parts selected`
+                : "Tap to add CPU, GPU, board…"}
+            </p>
+          </div>
+          {partsOpen ? (
+            <ChevronUp className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+          )}
+        </button>
+        {partsOpen && (
+          <div className="border-t border-[var(--color-border)] px-4 pb-4 pt-3">
+            <PartSelector />
+          </div>
+        )}
+      </div>
+
+      {hasParts && (
+        <>
+          <CompatibilitySummary
+            compatibleCount={compat.compatibleCount}
+            warningCount={compat.warningCount}
+            incompatibleCount={compat.incompatibleCount}
+            overallStatus={compat.overallStatus}
+          />
+
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
+            <button
+              type="button"
+              onClick={() => setAnalysisOpen(!analysisOpen)}
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+            >
+              <div>
+                <p className="text-sm font-semibold">Full analysis</p>
+                <p className="text-[10px] text-[var(--color-muted-foreground)]">
+                  Quality {quality.total}/100 · Verdict:{" "}
+                  <VerdictBadge verdict={recommendation.verdict} />
+                </p>
+              </div>
+              {analysisOpen ? (
+                <ChevronUp className="h-5 w-5 shrink-0 text-[var(--color-muted-foreground)]" />
+              ) : (
+                <ChevronDown className="h-5 w-5 shrink-0 text-[var(--color-muted-foreground)]" />
+              )}
+            </button>
+
+            {analysisOpen && (
+              <div className="space-y-4 border-t border-[var(--color-border)] p-4">
+                <Card className="border-0 bg-[var(--color-secondary)]/40 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Build quality</CardTitle>
+                    <CardDescription>
+                      Performance, balance, upgradeability, resale appeal
+                    </CardDescription>
+                  </CardHeader>
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="text-3xl font-bold text-[var(--color-primary)]"
+                    >
+                      {quality.total}
                     </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3 text-xs">
-                      {Object.entries(quality.breakdown).map(([key, val]) => (
-                        <div key={key} className="flex justify-between">
-                          <span className="text-[var(--color-muted-foreground)] capitalize">
-                            {key.replace(/([A-Z])/g, " $1")}
-                          </span>
-                          <span>{val}</span>
+                    <div className="flex-1">
+                      <div className="h-2.5 overflow-hidden rounded-full bg-[var(--color-secondary)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--color-primary)] transition-all shadow-[0_0_8px_rgba(255,77,157,0.5)]"
+                          style={{ width: `${quality.total}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="border-0 bg-[var(--color-secondary)]/40 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Part values</CardTitle>
+                  </CardHeader>
+                  <div className="table-scroll">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-[var(--color-border)]">
+                          <th className="py-2 text-left font-medium">Part</th>
+                          <th className="py-2 text-right font-medium">Used</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {entries.map((entry) => {
+                          const val = estimatePartValue(
+                            entry.component,
+                            entry.condition
+                          );
+                          return (
+                            <tr
+                              key={entry.component.id}
+                              className="border-b border-[var(--color-border)]/40"
+                            >
+                              <td className="py-2 pr-2">{entry.component.name}</td>
+                              <td className="py-2 text-right tabular-nums text-[var(--color-muted-foreground)]">
+                                {formatCurrency(val.mid)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+
+                <Card className="border-0 bg-[var(--color-secondary)]/40 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Part-out vs complete PC
+                    </CardTitle>
+                  </CardHeader>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-[var(--color-background)]/50 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
+                        Part-out
+                      </p>
+                      <p className="mt-1 font-bold tabular-nums">
+                        {formatCurrency(strategy.partOutValueMin)}–
+                        {formatCurrency(strategy.partOutValueMax)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-[var(--color-background)]/50 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
+                        Complete PC
+                      </p>
+                      <p className="mt-1 font-bold tabular-nums">
+                        {formatCurrency(strategy.completePcValueMin)}–
+                        {formatCurrency(strategy.completePcValueMax)}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="border-0 bg-[var(--color-secondary)]/40 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Performance</CardTitle>
+                    <CardDescription>{performance.disclaimer}</CardDescription>
+                  </CardHeader>
+                  <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                    <div>1080p: {performance.gaming1080p}</div>
+                    <div>1440p: {performance.gaming1440p}</div>
+                    <div>Productivity: {performance.productivity}</div>
+                    <div>Streaming: {performance.streaming}</div>
+                  </div>
+                </Card>
+
+                {upgrades.length > 0 && (
+                  <Card className="border-0 bg-[var(--color-secondary)]/40 shadow-none">
+                    <CardHeader>
+                      <CardTitle className="text-base">Upgrades</CardTitle>
+                    </CardHeader>
+                    <div className="space-y-2">
+                      {upgrades.slice(0, 3).map((u, i) => (
+                        <div
+                          key={u.id}
+                          className="rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-background)]/40 p-3 text-xs"
+                        >
+                          <Badge variant="secondary" className="mb-1">
+                            #{i + 1}
+                          </Badge>
+                          <p className="font-medium">{u.recommendedPart}</p>
+                          <p className="text-[var(--color-muted-foreground)]">
+                            +${u.additionalProfitMin}–${u.additionalProfitMax}{" "}
+                            profit
+                          </p>
                         </div>
                       ))}
                     </div>
-                  </div>
-                </div>
-                {quality.explanation.length > 0 && (
-                  <ul className="mt-4 space-y-1">
-                    {quality.explanation.map((e, i) => (
-                      <li
-                        key={i}
-                        className="text-sm text-[var(--color-muted-foreground)]"
-                      >
-                        • {e}
-                      </li>
-                    ))}
-                  </ul>
+                  </Card>
                 )}
-              </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Build Breakdown</CardTitle>
-                </CardHeader>
-                <div className="table-scroll">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-[var(--color-border)]">
-                        <th className="text-left py-2 font-medium">Part</th>
-                        <th className="text-left py-2 font-medium">Category</th>
-                        <th className="text-left py-2 font-medium">Tier</th>
-                        <th className="text-right py-2 font-medium">Used Value</th>
-                        <th className="text-right py-2 font-medium">New Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {entries.map((entry) => {
-                        const val = estimatePartValue(
-                          entry.component,
-                          entry.condition
-                        );
-                        return (
-                          <tr
-                            key={entry.component.id}
-                            className="border-b border-[var(--color-border)]/50"
-                          >
-                            <td className="py-2.5">{entry.component.name}</td>
-                            <td className="py-2.5 capitalize text-[var(--color-muted-foreground)]">
-                              {entry.component.category}
-                            </td>
-                            <td className="py-2.5">
-                              <Badge variant="secondary">
-                                {entry.component.performanceTier}
-                              </Badge>
-                            </td>
-                            <td className="py-2.5 text-right">
-                              {formatCurrency(val.min)}–{formatCurrency(val.max)}
-                            </td>
-                            <td className="py-2.5 text-right text-[var(--color-muted-foreground)]">
-                              {entry.component.pricing.newMax > 0
-                                ? `${formatCurrency(entry.component.pricing.newMin)}–${formatCurrency(entry.component.pricing.newMax)}`
-                                : "N/A"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Part-Out vs Complete PC</CardTitle>
-                </CardHeader>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="p-4 rounded-lg bg-[var(--color-secondary)]">
-                    <p className="text-xs text-[var(--color-muted-foreground)]">
-                      Part-Out Value
-                    </p>
-                    <p className="text-xl font-bold mt-1">
-                      {formatCurrency(strategy.partOutValueMin)}–
-                      {formatCurrency(strategy.partOutValueMax)}
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-[var(--color-secondary)]">
-                    <p className="text-xs text-[var(--color-muted-foreground)]">
-                      Complete PC Value
-                    </p>
-                    <p className="text-xl font-bold mt-1">
-                      {formatCurrency(strategy.completePcValueMin)}–
-                      {formatCurrency(strategy.completePcValueMax)}
-                    </p>
-                  </div>
-                </div>
-                <Badge
-                  variant={
-                    strategy.betterStrategy === "complete-pc"
-                      ? "success"
-                      : strategy.betterStrategy === "part-out"
-                        ? "warning"
-                        : "secondary"
-                  }
-                >
-                  Better: {strategy.betterStrategy.replace("-", " ").toUpperCase()}
-                </Badge>
-                <p className="text-sm text-[var(--color-muted-foreground)] mt-2">
-                  {strategy.explanation}
-                </p>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Estimate</CardTitle>
-                  <CardDescription>{performance.disclaimer}</CardDescription>
-                </CardHeader>
-                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                  <div>
-                    <span className="text-[var(--color-muted-foreground)]">
-                      Gaming 1080p:
-                    </span>{" "}
-                    {performance.gaming1080p}
-                  </div>
-                  <div>
-                    <span className="text-[var(--color-muted-foreground)]">
-                      Gaming 1440p:
-                    </span>{" "}
-                    {performance.gaming1440p}
-                  </div>
-                  <div>
-                    <span className="text-[var(--color-muted-foreground)]">
-                      Productivity:
-                    </span>{" "}
-                    {performance.productivity}
-                  </div>
-                  <div>
-                    <span className="text-[var(--color-muted-foreground)]">
-                      Streaming:
-                    </span>{" "}
-                    {performance.streaming}
-                  </div>
-                  <div>
-                    <span className="text-[var(--color-muted-foreground)]">
-                      AI:
-                    </span>{" "}
-                    {performance.ai}
-                  </div>
-                  <div>
-                    <span className="text-[var(--color-muted-foreground)]">
-                      Video Editing:
-                    </span>{" "}
-                    {performance.videoEditing}
-                  </div>
-                </div>
-              </Card>
-
-              {upgrades.length > 0 && (
-                <Card>
+                <Card className="border-0 bg-[var(--color-secondary)]/40 shadow-none">
                   <CardHeader>
-                    <CardTitle>Upgrade Recommendations</CardTitle>
-                    <CardDescription>
-                      Ranked by profit potential
-                    </CardDescription>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-base">Reseller verdict</CardTitle>
+                      <VerdictBadge verdict={recommendation.verdict} />
+                    </div>
                   </CardHeader>
-                  <div className="space-y-3">
-                    {upgrades.map((u, i) => (
-                      <div
-                        key={u.id}
-                        className="p-3 rounded-lg bg-[var(--color-secondary)] border border-[var(--color-border)]"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="secondary">#{i + 1}</Badge>
-                          <span className="font-medium text-sm">
-                            {u.recommendedPart}
-                          </span>
-                        </div>
-                        <p className="text-xs text-[var(--color-muted-foreground)]">
-                          Replace {u.currentPart} • Cost:{" "}
-                          {formatCurrency(u.upgradeCost)} • Resale +$
-                          {u.resaleIncreaseMin}–${u.resaleIncreaseMax} • Profit
-                          +${u.additionalProfitMin}–${u.additionalProfitMax}
-                        </p>
-                        <p className="text-xs mt-1">{u.reason}</p>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
+                    <div>
+                      <p className="text-[var(--color-muted-foreground)]">Max buy</p>
+                      <p className="font-bold tabular-nums">
+                        {formatCurrency(recommendation.suggestedPurchasePrice)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--color-muted-foreground)]">Target</p>
+                      <p className="font-bold tabular-nums text-[var(--color-primary)]">
+                        {formatCurrency(
+                          Math.round(
+                            (recommendation.targetResaleMin +
+                              recommendation.targetResaleMax) /
+                              2
+                          )
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--color-muted-foreground)]">Profit</p>
+                      <p className="font-bold tabular-nums text-[var(--color-success)]">
+                        {formatCurrency(recommendation.estimatedProfitMin)}–
+                        {formatCurrency(recommendation.estimatedProfitMax)}
+                      </p>
+                    </div>
                   </div>
                 </Card>
-              )}
 
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <CardTitle>Reseller Recommendation</CardTitle>
-                    <VerdictBadge verdict={recommendation.verdict} />
-                  </div>
-                </CardHeader>
-                <ul className="space-y-1 mb-4">
-                  {recommendation.reasons.map((r, i) => (
-                    <li key={i} className="text-sm">
-                      • {r}
-                    </li>
-                  ))}
-                </ul>
-                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                  <div>
-                    <p className="text-[var(--color-muted-foreground)]">
-                      Max Purchase
-                    </p>
-                    <p className="font-bold">
-                      {formatCurrency(recommendation.suggestedPurchasePrice)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[var(--color-muted-foreground)]">
-                      Target Resale
-                    </p>
-                    <p className="font-bold">
-                      {formatCurrency(recommendation.targetResaleMin)}–
-                      {formatCurrency(recommendation.targetResaleMax)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[var(--color-muted-foreground)]">
-                      Est. Profit
-                    </p>
-                    <p className="font-bold text-green-400">
-                      {formatCurrency(recommendation.estimatedProfitMin)}–
-                      {formatCurrency(recommendation.estimatedProfitMax)}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <div>
-                <h2 className="text-lg font-semibold mb-3">
-                  Compatibility Details
-                </h2>
                 <CompatibilityResults results={compat.results} />
               </div>
-            </>
-          )}
+            )}
+          </div>
+        </>
+      )}
 
-          {entries.length === 0 && (
-            <Card>
-              <p className="text-[var(--color-muted-foreground)]">
-                Select components on the left to start analyzing your build.
-              </p>
-            </Card>
-          )}
-        </div>
-      </div>
+      {!hasParts && (
+        <Card className="border-dashed border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">
+          <p className="text-center text-sm text-[var(--color-muted-foreground)]">
+            Open <strong className="text-[var(--color-foreground)]">Components</strong>{" "}
+            above to start building. The 3D view updates as you add parts.
+          </p>
+          <Button
+            className="mt-3 w-full"
+            onClick={() => setPartsOpen(true)}
+          >
+            Add parts
+          </Button>
+        </Card>
+      )}
     </div>
   );
 }

@@ -1,13 +1,15 @@
 import {
-  LayoutDashboard,
-  Wrench,
+  Cpu,
+  GitBranch,
+  Tag,
+  BarChart3,
+  Bookmark,
   ShieldCheck,
-  Search,
-  Calculator,
   Database,
   Package,
   Camera,
   Settings,
+  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,28 +21,42 @@ export interface NavItem {
   description?: string;
 }
 
+/** Mobile bottom bar — matches bench-style workflow */
 export const primaryNavItems: NavItem[] = [
-  { href: "/", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard },
   {
     href: "/build",
-    label: "Build Analyzer",
+    label: "Build",
     shortLabel: "Build",
-    icon: Wrench,
-    description: "Select parts & analyze builds",
+    icon: Cpu,
+    description: "3D rig builder & analyzer",
   },
   {
     href: "/deal",
     label: "Deal Analyzer",
-    shortLabel: "Deals",
-    icon: Search,
+    shortLabel: "Deal",
+    icon: GitBranch,
     description: "Evaluate listings fast",
   },
   {
     href: "/profit",
-    label: "Profit Calculator",
-    shortLabel: "Profit",
-    icon: Calculator,
+    label: "List Price",
+    shortLabel: "List",
+    icon: Tag,
     description: "ROI & flip margins",
+  },
+  {
+    href: "/inventory",
+    label: "Sales",
+    shortLabel: "Sales",
+    icon: BarChart3,
+    description: "Track your PC flips",
+  },
+  {
+    href: "/",
+    label: "Saved",
+    shortLabel: "Saved",
+    icon: Bookmark,
+    description: "Dashboard & saved builds",
   },
 ];
 
@@ -58,12 +74,6 @@ export const secondaryNavItems: NavItem[] = [
     description: "Browse all components",
   },
   {
-    href: "/inventory",
-    label: "Inventory",
-    icon: Package,
-    description: "Track your PC flips",
-  },
-  {
     href: "/scanner",
     label: "Part Scanner",
     icon: Camera,
@@ -77,7 +87,14 @@ export const secondaryNavItems: NavItem[] = [
   },
 ];
 
+export const desktopNavItems: NavItem[] = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  ...primaryNavItems.filter((i) => i.href !== "/"),
+  ...secondaryNavItems,
+];
+
 export const allNavItems: NavItem[] = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
   ...primaryNavItems,
   ...secondaryNavItems,
 ];

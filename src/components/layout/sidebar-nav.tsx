@@ -29,7 +29,7 @@ export function SidebarNav({ onNavigate, className }: SidebarNavProps) {
             className={cn(
               "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors active:scale-[0.98]",
               isActive
-                ? "bg-[var(--color-sidebar-active)] text-[var(--color-accent-foreground)] font-medium shadow-sm"
+                ? "bg-[var(--color-sidebar-active)] text-[var(--color-primary-foreground)] font-semibold shadow-[0_0_12px_rgba(255,77,157,0.25)]"
                 : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)]"
             )}
           >
@@ -56,7 +56,7 @@ export function SidebarBrand({ onNavigate }: { onNavigate?: () => void }) {
       onClick={onNavigate}
       className="flex items-center gap-3 px-4 py-4 sm:px-5"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-500/20">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff4d9d] to-[#a855f7] shadow-[0_0_20px_rgba(255,77,157,0.35)]">
         <Cpu className="h-5 w-5 text-white" />
       </div>
       <div className="min-w-0">

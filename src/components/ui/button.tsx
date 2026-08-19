@@ -7,9 +7,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants = {
   default:
-    "bg-[var(--color-primary)] text-white hover:bg-blue-600 shadow-sm",
+    "bg-[var(--color-primary)] text-white hover:brightness-110 shadow-[0_0_16px_rgba(255,77,157,0.3)]",
   secondary:
-    "bg-[var(--color-secondary)] text-[var(--color-secondary-foreground)] hover:bg-slate-700",
+    "bg-[var(--color-secondary)] text-[var(--color-secondary-foreground)] hover:bg-[#2a2038]",
   outline:
     "border border-[var(--color-border)] bg-transparent hover:bg-[var(--color-secondary)]",
   ghost: "hover:bg-[var(--color-secondary)]",

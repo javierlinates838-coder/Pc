@@ -13,6 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const pageTitle = getPageTitle(pathname);
+  const isBuildPage = pathname === "/build";
 
   useEffect(() => {
     setMenuOpen(false);
@@ -27,7 +28,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-[100dvh] bg-[var(--color-background)]">
-      {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:border-r lg:border-[var(--color-border)] lg:bg-[var(--color-sidebar)]">
         <SidebarBrand />
         <div className="flex-1 overflow-y-auto">
@@ -35,17 +35,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="border-t border-[var(--color-border)] p-4">
           <p className="text-center text-[10px] text-[var(--color-muted-foreground)]">
-            Local compatibility engine · No API required
+            Local engine · 205+ parts · No API
           </p>
         </div>
       </aside>
 
-      {/* Mobile drawer */}
       {menuOpen && (
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -71,9 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/90 px-4 backdrop-blur-md safe-top lg:hidden">
           <button
             type="button"
@@ -92,14 +89,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="page-container">
+          <div
+            className={cn(
+              "page-container",
+              isBuildPage && "page-container--build"
+            )}
+          >
             <AppProviders>{children}</AppProviders>
           </div>
         </main>
 
-        {/* Mobile bottom nav */}
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--color-border)] bg-[var(--color-card)]/95 backdrop-blur-md safe-bottom lg:hidden">
-          <div className="mx-auto grid max-w-lg grid-cols-5 gap-1 px-2 py-1.5">
+          <div className="mx-auto grid max-w-lg grid-cols-5 gap-0.5 px-1 py-1.5">
             {primaryNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -110,28 +111,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-colors active:scale-95",
+                    "relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-all active:scale-95",
                     isActive
-                      ? "bg-[var(--color-sidebar-active)] text-[var(--color-accent-foreground)]"
+                      ? "bg-[var(--color-primary)] text-white shadow-[0_0_16px_rgba(255,77,157,0.35)]"
                       : "text-[var(--color-muted-foreground)]"
                   )}
                 >
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className="h-5 w-5" strokeWidth={isActive ? 2.25 : 2} />
                   <span className="truncate">{item.shortLabel ?? item.label}</span>
+                  {isActive && (
+                    <span
+                      className="absolute -top-0.5 right-2 h-1.5 w-1.5 rounded-full bg-white/80"
+                      aria-hidden
+                    />
+                  )}
                 </Link>
               );
             })}
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              className={cn(
-                "flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-medium text-[var(--color-muted-foreground)] active:scale-95",
-                menuOpen && "bg-[var(--color-secondary)] text-[var(--color-foreground)]"
-              )}
-            >
-              <Menu className="h-5 w-5" />
-              <span>More</span>
-            </button>
           </div>
         </nav>
       </div>
