@@ -147,32 +147,20 @@ export default function BuildAnalyzerPage() {
       {hasParts && (
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-xs text-[var(--color-muted-foreground)]">
-            Part condition
+            Condition
           </label>
           <Select
             value={overallCondition}
             onChange={(e) => setAllConditions(e.target.value as Condition)}
-            className="h-9 w-auto min-w-[140px] text-xs"
+            className="h-9 w-auto min-w-[120px] text-xs"
           >
             {CONDITION_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </Select>
-          {flipCosts.purchasePrice > 0 && (
-            <Badge variant="secondary">
-              Paid {formatCurrency(flipCosts.purchasePrice)}
-            </Badge>
-          )}
           {activeInventoryId && (
             <Badge variant="secondary">Linked to inventory</Badge>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push("/profit")}
-          >
-            Edit costs & profit
-          </Button>
           {activeInventoryId && (
             <Button variant="outline" size="sm" onClick={handleUpdateInventory}>
               Update inventory

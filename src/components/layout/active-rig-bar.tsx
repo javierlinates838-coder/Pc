@@ -7,7 +7,6 @@ import { getPartCount, componentMapToEntries } from "@/lib/build/helpers";
 import { formatCurrency } from "@/lib/utils";
 import { estimateFlipResale } from "@/lib/flip/resale";
 import { Button } from "@/components/ui/button";
-import { getWorkflowStep } from "./nav-config";
 
 export function ActiveRigBar() {
   const pathname = usePathname();
@@ -16,13 +15,43 @@ export function ActiveRigBar() {
 
   const partCount = getPartCount(currentBuild);
   const hasPc = partCount > 0;
-  const workflowStep = getWorkflowStep(pathname);
 
   const listEst = hasPc
     ? estimateFlipResale(componentMapToEntries(currentBuild)).mid
     : 0;
 
   if (pathname === "/" && !hasPc) return null;
+
+  // Build page: header + visualizer already show rig context — keep bar minimal
+  if (pathname === "/build") {
+    if (!hasPc) {
+      return (
+        <div className="mb-3 rounded-xl border border-dashed border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted-foreground)]">
+          Pick parts below, or{" "}
+          <Link href="/deal" className="text-[var(--color-primary)] underline">
+            paste a listing
+          </Link>
+          {" "}on Deal first.
+        </div>
+      );
+    }
+    return (
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/25 px-3 py-2">
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          <span className="font-semibold text-[var(--color-foreground)]">
+            {partCount} parts
+          </span>
+          {flipCosts.purchasePrice > 0 && (
+            <> · paid {formatCurrency(flipCosts.purchasePrice)}</>
+          )}
+          {listEst > 0 && <> · list ~{formatCurrency(listEst)}</>}
+        </p>
+        <Button size="sm" onClick={() => router.push("/profit")}>
+          Profit math →
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -59,37 +88,24 @@ export function ActiveRigBar() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {workflowStep && workflowStep.step < 4 && hasPc && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs"
-              onClick={() => {
-                const next = workflowStep.step + 1;
-                const href =
-                  next === 2
-                    ? "/build"
-                    : next === 3
-                      ? "/profit"
-                      : "/inventory";
-                router.push(href);
-              }}
-            >
-              Next: step {workflowStep.step + 1}
-            </Button>
-          )}
-          {hasPc && pathname !== "/build" && (
-            <Button size="sm" variant="outline" onClick={() => router.push("/build")}>
-              Open PC
-            </Button>
-          )}
-          {hasPc && pathname !== "/profit" && (
-            <Button size="sm" onClick={() => router.push("/profit")}>
-              Profit math
-            </Button>
-          )}
-        </div>
+        {hasPc && (
+          <div className="flex flex-wrap items-center gap-2">
+            {pathname !== "/profit" && (
+              <Button size="sm" onClick={() => router.push("/profit")}>
+                Profit math
+              </Button>
+            )}
+            {pathname !== "/build" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push("/build")}
+              >
+                Open PC
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
