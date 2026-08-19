@@ -1,17 +1,22 @@
 "use client";
 
-import { useInventoryStore } from "@/lib/inventory/store";
+import { useRouter } from "next/navigation";
+import { useInventoryStore, useBuildStore } from "@/lib/inventory/store";
+import { pcBuildToComponentMap } from "@/lib/build/helpers";
+import { Select } from "@/components/ui/select";
 import { useInventoryStats } from "@/lib/inventory/use-inventory-stats";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { calculateProfit } from "@/lib/reseller/profit";
 import { ProfitChart } from "@/components/inventory/profit-chart-loader";
 import { PageHeader } from "@/components/layout/page-header";
+import type { SavedInventoryPC } from "@/lib/types/inventory";
 
 export default function InventoryPage() {
-  const { pcs, removePC } = useInventoryStore();
+  const { pcs, removePC, updatePC } = useInventoryStore();
+  const { loadBuild } = useBuildStore();
+  const router = useRouter();
   const stats = useInventoryStats();
 
   const chartData = pcs.map((pc) => {
@@ -136,7 +141,20 @@ export default function InventoryPage() {
                     >
                       <td className="py-2.5 font-medium">{pc.name}</td>
                       <td className="py-2.5">
-                        <Badge variant="secondary">{pc.status}</Badge>
+                        <Select
+                          value={pc.status}
+                          onChange={(e) =>
+                            updatePC(pc.id, {
+                              status: e.target.value as SavedInventoryPC["status"],
+                            })
+                          }
+                          className="h-8 text-xs"
+                        >
+                          <option value="draft">draft</option>
+                          <option value="in-progress">in-progress</option>
+                          <option value="listed">listed</option>
+                          <option value="sold">sold</option>
+                        </Select>
                       </td>
                       <td className="py-2.5 text-right">
                         {formatCurrency(pc.costs.purchasePrice)}
@@ -156,13 +174,28 @@ export default function InventoryPage() {
                         {formatPercent(profit.roi)}
                       </td>
                       <td className="py-2.5 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removePC(pc.id)}
-                        >
-                          Remove
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              loadBuild(
+                                pcBuildToComponentMap(pc.build),
+                                pc.name
+                              );
+                              router.push("/build");
+                            }}
+                          >
+                            Open
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removePC(pc.id)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );

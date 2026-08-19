@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useInventoryStore, useSettingsStore } from "@/lib/inventory/store";
+import { useInventoryStore, useSettingsStore, useBuildStore } from "@/lib/inventory/store";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -14,6 +14,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         await Promise.all([
           useInventoryStore.persist.rehydrate(),
           useSettingsStore.persist.rehydrate(),
+          useBuildStore.persist.rehydrate(),
         ]);
       } catch {
         // Corrupted storage should not crash the app
@@ -21,6 +22,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         useSettingsStore.setState({
           defaultMarketplaceFee: 10,
           defaultShippingCost: 20,
+        });
+        useBuildStore.setState({
+          currentBuild: {},
+          buildName: "Untitled Rig",
+          savedBuilds: [],
         });
       }
 

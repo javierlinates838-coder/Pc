@@ -3,12 +3,14 @@
 interface BuildRigHeaderProps {
   buildName: string;
   onNameChange: (name: string) => void;
+  onSave?: () => void;
   subtitle?: string;
 }
 
 export function BuildRigHeader({
   buildName,
   onNameChange,
+  onSave,
   subtitle = "Pick parts and see what fits, what it draws, and what it costs you to assemble.",
 }: BuildRigHeaderProps) {
   return (
@@ -33,6 +35,15 @@ export function BuildRigHeader({
         <span className="shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)]/50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">
           Saved local
         </span>
+        {onSave && (
+          <button
+            type="button"
+            onClick={onSave}
+            className="shrink-0 rounded-full bg-[var(--color-primary)] px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-white shadow-[0_0_12px_rgba(255,77,157,0.35)]"
+          >
+            Save build
+          </button>
+        )}
       </div>
       <p className="text-xs leading-relaxed text-[var(--color-muted-foreground)] sm:text-sm">
         {subtitle}

@@ -32,7 +32,7 @@ import { formatCurrency } from "@/lib/utils";
 import { VerdictBadge } from "@/components/ui/status-badge";
 
 export default function BuildAnalyzerPage() {
-  const { currentBuild, buildName, setBuildName } = useBuildStore();
+  const { currentBuild, buildName, setBuildName, saveCurrentBuild } = useBuildStore();
   const { defaultShippingCost } = useSettingsStore();
   const [partsOpen, setPartsOpen] = useState(true);
   const [analysisOpen, setAnalysisOpen] = useState(false);
@@ -84,6 +84,7 @@ export default function BuildAnalyzerPage() {
       <BuildRigHeader
         buildName={buildName}
         onNameChange={setBuildName}
+        onSave={() => saveCurrentBuild()}
       />
 
       <BuildVisualizer meta={visualizerMeta} hasParts={hasParts} />

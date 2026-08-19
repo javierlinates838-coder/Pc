@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useBuildStore, useInventoryStore, useSettingsStore } from "@/lib/inventory/store";
 import { calculateProfit } from "@/lib/reseller/profit";
+import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
+import { PlatformProfitTable } from "@/components/marketplace/platform-profit-table";
 import { componentMapToEntries } from "@/lib/build/helpers";
 import { estimateCompletePcValue } from "@/lib/pricing/estimator";
 import { formatCurrency, formatPercent } from "@/lib/utils";
@@ -37,6 +39,19 @@ export default function ProfitCalculatorPage() {
   });
 
   const profit = useMemo(() => calculateProfit(costs), [costs]);
+
+  const platformResults = useMemo(
+    () =>
+      compareAllPlatforms({
+        salePrice: costs.targetSellingPrice,
+        purchasePrice: costs.purchasePrice,
+        repairCosts: costs.repairCosts,
+        upgradeCosts: costs.upgradeCosts,
+        shippingCost: costs.shippingCosts,
+        otherExpenses: costs.otherExpenses,
+      }),
+    [costs]
+  );
 
   const updateCost = (key: keyof ResellerCosts, value: number) => {
     setCosts((prev) => ({ ...prev, [key]: value }));
@@ -174,8 +189,18 @@ export default function ProfitCalculatorPage() {
           </Card>
 
           <Button onClick={handleSave} className="w-full">
-            Save to Inventory
+            Save to inventory
           </Button>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Sell on best platform</CardTitle>
+              <CardDescription>
+                Compare net profit after real fees (eBay, FB, Mercari, HWSwap…)
+              </CardDescription>
+            </CardHeader>
+            <PlatformProfitTable results={platformResults} />
+          </Card>
         </div>
       </div>
     </div>

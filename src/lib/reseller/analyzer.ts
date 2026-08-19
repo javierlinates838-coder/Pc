@@ -14,37 +14,10 @@ import {
   estimateCompletePcValue,
 } from "@/lib/pricing/estimator";
 import { calculateProfit } from "./profit";
+import { parseDealListing, extractListingPrice } from "./listing-parser";
 import type { CPU, GPU, RAM, Storage, Motherboard, Cooler, PSU, Case } from "@/lib/types/components";
 
-export function parseDealListing(text: string): ComponentMap {
-  const parts: ComponentMap = {};
-  const matches = fuzzyMatchComponent(text);
-
-  for (const match of matches) {
-    if (match.category === "cpu" && !parts.cpu) parts.cpu = match as CPU;
-    if (match.category === "gpu" && !parts.gpu) parts.gpu = match as GPU;
-    if (match.category === "motherboard" && !parts.motherboard)
-      parts.motherboard = match as Motherboard;
-    if (match.category === "ram" && !parts.ram) parts.ram = match as RAM;
-    if (match.category === "storage") {
-      if (!parts.storage) parts.storage = [];
-      parts.storage.push(match as Storage);
-    }
-    if (match.category === "cooler" && !parts.cooler)
-      parts.cooler = match as Cooler;
-    if (match.category === "psu" && !parts.psu) parts.psu = match as PSU;
-    if (match.category === "case" && !parts.case) parts.case = match as Case;
-  }
-
-  return parts;
-}
-
-export function extractListingPrice(text: string): number {
-  const priceMatch = text.match(/\$[\d,]+(?:\.\d{2})?/g);
-  if (!priceMatch) return 0;
-  const lastPrice = priceMatch[priceMatch.length - 1];
-  return parseFloat(lastPrice.replace(/[$,]/g, ""));
-}
+export { parseDealListing, extractListingPrice, scrapeListingText } from "./listing-parser";
 
 export function analyzeDeal(listingText: string): DealAnalysis {
   const parts = parseDealListing(listingText);

@@ -21,16 +21,28 @@ function buildToEntries(parts: ComponentMap): BuildPartEntry[] {
   return entries;
 }
 
+export interface SavedBuildSnapshot {
+  id: string;
+  name: string;
+  parts: ComponentMap;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface BuildStore {
   currentBuild: ComponentMap;
   conditions: Partial<Record<string, Condition>>;
   buildName: string;
+  savedBuilds: SavedBuildSnapshot[];
   setPart: (category: keyof ComponentMap, component: unknown) => void;
   removePart: (category: keyof ComponentMap) => void;
   setCondition: (componentId: string, condition: Condition) => void;
   setBuildName: (name: string) => void;
   clearBuild: () => void;
   loadBuild: (parts: ComponentMap, name?: string) => void;
+  saveCurrentBuild: () => void;
+  loadSavedBuild: (id: string) => void;
+  deleteSavedBuild: (id: string) => void;
 }
 
 interface InventoryStore {
@@ -47,44 +59,98 @@ interface SettingsStore {
   setDefaultShippingCost: (cost: number) => void;
 }
 
-export const useBuildStore = create<BuildStore>((set) => ({
-  currentBuild: {},
-  conditions: {},
-  buildName: "New Build",
-  setPart: (category, component) =>
-    set((state) => {
-      if (category === "storage" && component) {
-        const storageItem = component as Storage;
-        const existing = state.currentBuild.storage ?? [];
-        return {
-          currentBuild: {
-            ...state.currentBuild,
-            storage: [...existing, storageItem],
-          },
+export const useBuildStore = create<BuildStore>()(
+  persist(
+    (set, get) => ({
+      currentBuild: {},
+      conditions: {},
+      buildName: "Untitled Rig",
+      savedBuilds: [],
+      setPart: (category, component) =>
+        set((state) => {
+          if (category === "storage" && component) {
+            const storageItem = component as Storage;
+            const existing = state.currentBuild.storage ?? [];
+            return {
+              currentBuild: {
+                ...state.currentBuild,
+                storage: [...existing, storageItem],
+              },
+            };
+          }
+          return {
+            currentBuild: {
+              ...state.currentBuild,
+              [category]: component as ComponentMap[typeof category],
+            },
+          };
+        }),
+      removePart: (category) =>
+        set((state) => {
+          const next = { ...state.currentBuild };
+          delete next[category];
+          return { currentBuild: next };
+        }),
+      setCondition: (componentId, condition) =>
+        set((state) => ({
+          conditions: { ...state.conditions, [componentId]: condition },
+        })),
+      setBuildName: (name) => set({ buildName: name }),
+      clearBuild: () =>
+        set({ currentBuild: {}, conditions: {}, buildName: "Untitled Rig" }),
+      loadBuild: (parts, name) =>
+        set({
+          currentBuild: parts,
+          buildName: name ?? "Loaded Build",
+        }),
+      saveCurrentBuild: () => {
+        const { currentBuild, buildName, savedBuilds } = get();
+        if (Object.keys(currentBuild).length === 0) return;
+        const existing = savedBuilds.find((b) => b.name === buildName);
+        if (existing) {
+          set({
+            savedBuilds: savedBuilds.map((b) =>
+              b.id === existing.id
+                ? {
+                    ...b,
+                    parts: currentBuild,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : b
+            ),
+          });
+          return;
+        }
+        const snapshot: SavedBuildSnapshot = {
+          id: createId(),
+          name: buildName,
+          parts: currentBuild,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
-      }
-      return {
-        currentBuild: {
-          ...state.currentBuild,
-          [category]: component as ComponentMap[typeof category],
-        },
-      };
+        set({ savedBuilds: [...savedBuilds, snapshot] });
+      },
+      loadSavedBuild: (id) => {
+        const snap = get().savedBuilds.find((b) => b.id === id);
+        if (snap) {
+          set({
+            currentBuild: snap.parts,
+            buildName: snap.name,
+          });
+        }
+      },
+      deleteSavedBuild: (id) =>
+        set((state) => ({
+          savedBuilds: state.savedBuilds.filter((b) => b.id !== id),
+        })),
     }),
-  removePart: (category) =>
-    set((state) => {
-      const next = { ...state.currentBuild };
-      delete next[category];
-      return { currentBuild: next };
-    }),
-  setCondition: (componentId, condition) =>
-    set((state) => ({
-      conditions: { ...state.conditions, [componentId]: condition },
-    })),
-  setBuildName: (name) => set({ buildName: name }),
-  clearBuild: () => set({ currentBuild: {}, conditions: {}, buildName: "New Build" }),
-  loadBuild: (parts, name) =>
-    set({ currentBuild: parts, buildName: name ?? "Loaded Build" }),
-}));
+    {
+      name: "pc-reseller-build",
+      storage: createJSONStorage(() => safeLocalStorage),
+      skipHydration: true,
+    }
+  )
+);
 
 export const useInventoryStore = create<InventoryStore>()(
   persist(

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { getComponentSpecLines } from "@/lib/database/component-specs";
+import { getPartIntel } from "@/lib/database/intel/part-intel";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
@@ -21,6 +22,7 @@ export function ComponentCard({
 }: ComponentCardProps) {
   const [expanded, setExpanded] = useState(false);
   const specs = getComponentSpecLines(component);
+  const intel = getPartIntel(component);
 
   return (
     <Card className="flex flex-col p-4">
@@ -39,6 +41,12 @@ export function ComponentCard({
       {component.specsSummary && (
         <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted-foreground)]">
           {component.specsSummary}
+        </p>
+      )}
+
+      {intel.flipTips[0] && (
+        <p className="mt-2 text-[10px] leading-relaxed text-[var(--color-accent-foreground)]">
+          💡 {intel.flipTips[0]}
         </p>
       )}
 
