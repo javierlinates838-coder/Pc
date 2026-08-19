@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useInventoryStore, useSettingsStore, useBuildStore } from "@/lib/inventory/store";
+import { ActiveRigBar } from "@/components/layout/active-rig-bar";
+import { PageStepBanner } from "@/components/layout/page-step-banner";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -25,8 +27,19 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         });
         useBuildStore.setState({
           currentBuild: {},
+          conditions: {},
           buildName: "Untitled Rig",
           savedBuilds: [],
+          flipCosts: {
+            purchasePrice: 0,
+            repairCosts: 0,
+            upgradeCosts: 0,
+            shippingCosts: 20,
+            marketplaceFeePercent: 10,
+            otherExpenses: 15,
+            targetSellingPrice: 0,
+          },
+          activeInventoryId: null,
         });
       }
 
@@ -54,5 +67,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <ActiveRigBar />
+      <PageStepBanner />
+      {children}
+    </>
+  );
 }

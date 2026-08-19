@@ -130,8 +130,8 @@ export default function ProfitCalculatorPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        title="Profit Calculator"
-        description="Same numbers as Deal and Build — purchase price, fees, and resale stay in sync"
+        title="Profit Math"
+        description="Step 3 — what you paid, what you'll sell for, minus fees. Same numbers as Deal and Build."
       />
 
       <Card className="border-[var(--color-border)]">

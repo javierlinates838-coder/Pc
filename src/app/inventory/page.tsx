@@ -31,8 +31,8 @@ export default function InventoryPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        title="PC Inventory"
-        description="Track all your PC flips and business metrics"
+        title="My Flips"
+        description="Step 4 — PCs you saved. Open one to keep working on it, or see profit at a glance."
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">

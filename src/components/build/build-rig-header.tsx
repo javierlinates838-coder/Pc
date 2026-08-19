@@ -11,7 +11,7 @@ export function BuildRigHeader({
   buildName,
   onNameChange,
   onSave,
-  subtitle = "Pick parts and see what fits, what it draws, and what it costs you to assemble.",
+  subtitle = "Step 2 — the parts in your current flip. Add or change them here.",
 }: BuildRigHeaderProps) {
   return (
     <header className="space-y-3">

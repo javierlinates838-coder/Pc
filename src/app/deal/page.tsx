@@ -163,8 +163,8 @@ export default function DealAnalyzerPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        title="Deal Analyzer"
-        description="Paste a listing — we detect parts, estimate resale, and show profit after fees"
+        title="Check Listing"
+        description="Paste someone's ad. We find the parts, read the price, and estimate if it's a good buy."
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
@@ -188,7 +188,7 @@ export default function DealAnalyzerPage() {
           />
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <Button onClick={handleAnalyze} className="w-full sm:w-auto">
-              Analyze deal
+              Check this deal
             </Button>
             {analyzed && Object.keys(parts).length > 0 && (
               <>

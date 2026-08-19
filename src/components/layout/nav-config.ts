@@ -1,15 +1,13 @@
 import {
   Cpu,
   GitBranch,
-  Tag,
   BarChart3,
-  Bookmark,
+  Tag,
+  LayoutDashboard,
   ShieldCheck,
   Database,
-  Package,
   Camera,
   Settings,
-  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,42 +19,42 @@ export interface NavItem {
   description?: string;
 }
 
-/** Mobile bottom bar — matches bench-style workflow */
+/** Bottom nav — order matches the flip workflow */
 export const primaryNavItems: NavItem[] = [
   {
-    href: "/build",
-    label: "Build",
-    shortLabel: "Build",
-    icon: Cpu,
-    description: "3D rig builder & analyzer",
+    href: "/",
+    label: "Home",
+    shortLabel: "Home",
+    icon: LayoutDashboard,
+    description: "Start here — how flipping works",
   },
   {
     href: "/deal",
-    label: "Deal Analyzer",
+    label: "Check Listing",
     shortLabel: "Deal",
     icon: GitBranch,
-    description: "Evaluate listings fast",
+    description: "Paste a Facebook/eBay ad",
+  },
+  {
+    href: "/build",
+    label: "Your PC",
+    shortLabel: "Build",
+    icon: Cpu,
+    description: "Parts, 3D view, compatibility",
   },
   {
     href: "/profit",
-    label: "List Price",
-    shortLabel: "List",
+    label: "Profit Math",
+    shortLabel: "Profit",
     icon: Tag,
-    description: "ROI & flip margins",
+    description: "Pay vs sell vs fees",
   },
   {
     href: "/inventory",
-    label: "Sales",
-    shortLabel: "Sales",
+    label: "My Flips",
+    shortLabel: "Flips",
     icon: BarChart3,
-    description: "Track your PC flips",
-  },
-  {
-    href: "/",
-    label: "Saved",
-    shortLabel: "Saved",
-    icon: Bookmark,
-    description: "Dashboard & saved builds",
+    description: "Saved PCs you are flipping",
   },
 ];
 
@@ -77,7 +75,7 @@ export const secondaryNavItems: NavItem[] = [
     href: "/scanner",
     label: "Part Scanner",
     icon: Camera,
-    description: "Identify parts from photos",
+    description: "Identify parts from text or photos",
   },
   {
     href: "/settings",
@@ -88,15 +86,53 @@ export const secondaryNavItems: NavItem[] = [
 ];
 
 export const desktopNavItems: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  ...primaryNavItems.filter((i) => i.href !== "/"),
+  ...primaryNavItems,
   ...secondaryNavItems,
 ];
 
-export const allNavItems: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  ...primaryNavItems,
-  ...secondaryNavItems,
+export const allNavItems: NavItem[] = [...primaryNavItems, ...secondaryNavItems];
+
+export interface WorkflowStep {
+  step: number;
+  href: string;
+  label: string;
+  title: string;
+  description: string;
+}
+
+export const FLIP_WORKFLOW: WorkflowStep[] = [
+  {
+    step: 1,
+    href: "/deal",
+    label: "Deal",
+    title: "Paste a listing",
+    description:
+      "Copy the ad from Facebook, eBay, or Craigslist. We read the parts and the price they're asking.",
+  },
+  {
+    step: 2,
+    href: "/build",
+    label: "Build",
+    title: "See the PC",
+    description:
+      "Same parts load here automatically. Check compatibility and what the rig is worth.",
+  },
+  {
+    step: 3,
+    href: "/profit",
+    label: "Profit",
+    title: "Run the money",
+    description:
+      "What you pay, what you sell for, shipping, and platform fees — your real profit.",
+  },
+  {
+    step: 4,
+    href: "/inventory",
+    label: "Flips",
+    title: "Save it",
+    description:
+      "Store the flip so you can come back later. Open it again from here anytime.",
+  },
 ];
 
 export function getPageTitle(pathname: string): string {
@@ -106,4 +142,13 @@ export function getPageTitle(pathname: string): string {
       (nav.href !== "/" && pathname.startsWith(nav.href))
   );
   return item?.label ?? "PC Flip Pro";
+}
+
+export function getWorkflowStep(pathname: string): WorkflowStep | null {
+  const match = FLIP_WORKFLOW.find(
+    (s) =>
+      pathname === s.href ||
+      (s.href !== "/" && pathname.startsWith(s.href))
+  );
+  return match ?? null;
 }
