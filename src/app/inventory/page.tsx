@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useInventoryStore, useBuildStore } from "@/lib/inventory/store";
-import { pcBuildToComponentMap } from "@/lib/build/helpers";
 import { Select } from "@/components/ui/select";
 import { useInventoryStats } from "@/lib/inventory/use-inventory-stats";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,7 +14,7 @@ import type { SavedInventoryPC } from "@/lib/types/inventory";
 
 export default function InventoryPage() {
   const { pcs, removePC, updatePC } = useInventoryStore();
-  const { loadBuild } = useBuildStore();
+  const { loadInventoryPc } = useBuildStore();
   const router = useRouter();
   const stats = useInventoryStats();
 
@@ -179,14 +178,21 @@ export default function InventoryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              loadBuild(
-                                pcBuildToComponentMap(pc.build),
-                                pc.name
-                              );
+                              loadInventoryPc(pc);
                               router.push("/build");
                             }}
                           >
                             Open
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              loadInventoryPc(pc);
+                              router.push("/profit");
+                            }}
+                          >
+                            Costs
                           </Button>
                           <Button
                             variant="ghost"

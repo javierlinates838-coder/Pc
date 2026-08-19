@@ -20,6 +20,8 @@ import {
   type ListingParseResult,
 } from "./listing-parser";
 import { getBestPlatform } from "@/lib/marketplaces/calculate";
+import { FLIP_OTHER_EXPENSES, FLIP_PLATFORM_SHIPPING } from "@/lib/flip/defaults";
+import { estimateFlipResale } from "@/lib/flip/resale";
 import type { CPU, GPU, RAM, Storage, Motherboard, Cooler, PSU, Case } from "@/lib/types/components";
 
 export { parseDealListing, extractListingPrice, scrapeListingText } from "./listing-parser";
@@ -48,17 +50,13 @@ export function analyzeDeal(
   }
 
   const marketValue = estimateCompletePcValue(buildEntries);
-  const resaleValue = {
-    min: Math.round(marketValue.min * 1.05),
-    max: Math.round(marketValue.max * 1.1),
-    mid: Math.round(marketValue.mid * 1.08),
-  };
+  const resaleValue = estimateFlipResale(buildEntries);
 
   const bestPlatform = getBestPlatform({
     salePrice: resaleValue.mid,
     purchasePrice: listingPrice,
-    shippingCost: 25,
-    otherExpenses: 15,
+    shippingCost: FLIP_PLATFORM_SHIPPING,
+    otherExpenses: FLIP_OTHER_EXPENSES,
   });
   const netProfit = bestPlatform.netProfit;
 
@@ -236,9 +234,9 @@ export function generateResellerRecommendation(
     purchasePrice: listingPrice,
     repairCosts: 0,
     upgradeCosts: upgradeCost,
-    shippingCosts: 20,
+    shippingCosts: FLIP_PLATFORM_SHIPPING,
     marketplaceFeePercent: 10,
-    otherExpenses: 15,
+    otherExpenses: FLIP_OTHER_EXPENSES,
     targetSellingPrice: resale.mid,
   });
 

@@ -1,25 +1,35 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { scanFromImageFile, scanFromText } from "@/lib/image/scanner";
+import { scrapeListingText } from "@/lib/reseller/analyzer";
+import { listingHintToCondition } from "@/lib/flip/conditions";
 import { useBuildStore } from "@/lib/inventory/store";
 import type { ComponentMap } from "@/lib/types/components";
 import { Upload, Camera, Search } from "lucide-react";
 import type { ScanMatch } from "@/lib/image/scanner";
 import { PageHeader } from "@/components/layout/page-header";
 
+function looksLikeFullListing(text: string): boolean {
+  const lines = text.split(/\n/).filter((l) => l.trim().length > 3);
+  return lines.length >= 2 || /\brtx|ryzen|i[3579]|16gb|nvme|gaming pc\b/i.test(text);
+}
+
 export default function ScannerPage() {
+  const router = useRouter();
   const [scanResult, setScanResult] = useState<{
     matches: ScanMatch[];
     extractedText: string;
   } | null>(null);
   const [textInput, setTextInput] = useState("");
   const [pendingMatch, setPendingMatch] = useState<ScanMatch | null>(null);
-  const { setPart } = useBuildStore();
+  const [listingMode, setListingMode] = useState(false);
+  const { setPart, loadBuild } = useBuildStore();
 
   const handleFileUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,6 +37,7 @@ export default function ScannerPage() {
       if (!file) return;
       const result = await scanFromImageFile(file);
       setScanResult(result);
+      setListingMode(false);
       if (result.matches.length > 0) {
         setPendingMatch(result.matches[0]);
       }
@@ -35,11 +46,38 @@ export default function ScannerPage() {
   );
 
   const handleTextScan = () => {
+    if (looksLikeFullListing(textInput)) {
+      const scrape = scrapeListingText(textInput);
+      const partCount = Object.keys(scrape.parts).length;
+      setListingMode(true);
+      setScanResult({
+        matches: [],
+        extractedText: `Full listing detected — ${partCount} parts matched. Load into builder to continue.`,
+      });
+      setPendingMatch(null);
+      return;
+    }
+
     const result = scanFromText(textInput);
+    setListingMode(false);
     setScanResult(result);
     if (result.matches.length > 0) {
       setPendingMatch(result.matches[0]);
     }
+  };
+
+  const handleLoadListing = () => {
+    const scrape = scrapeListingText(textInput);
+    loadBuild(scrape.parts, {
+      name: "Scanned Listing",
+      defaultCondition: listingHintToCondition(scrape.hints.condition),
+      costs: {
+        purchasePrice: scrape.listingPrice,
+        targetSellingPrice: 0,
+      },
+      inventoryId: null,
+    });
+    router.push("/build");
   };
 
   const confirmMatch = (match: ScanMatch) => {
@@ -53,7 +91,14 @@ export default function ScannerPage() {
       );
     }
     setPendingMatch(null);
-    alert(`Added ${component.name} to build!`);
+    setScanResult((prev) =>
+      prev
+        ? {
+            ...prev,
+            extractedText: `Added ${component.name}. Open builder to see full rig.`,
+          }
+        : null
+    );
   };
 
   const confidenceColor = {
@@ -66,7 +111,7 @@ export default function ScannerPage() {
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Part Scanner"
-        description="Upload a photo or enter text to identify PC components"
+        description="Single part ID or paste a full listing — same parser as Deal analyzer"
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
@@ -104,18 +149,23 @@ export default function ScannerPage() {
               Text Identification
             </CardTitle>
             <CardDescription>
-              Type or paste component name/model text
+              One part name, or paste a multi-line listing
             </CardDescription>
           </CardHeader>
           <Textarea
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
-            placeholder="e.g. NVIDIA GeForce RTX 3060 12GB"
+            placeholder="e.g. RTX 3060 — or paste full Facebook listing"
             rows={4}
           />
-          <Button onClick={handleTextScan} className="mt-3">
-            Identify Component
-          </Button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button onClick={handleTextScan}>Identify</Button>
+            {listingMode && (
+              <Button variant="outline" onClick={handleLoadListing}>
+                Load listing into builder
+              </Button>
+            )}
+          </div>
         </Card>
       </div>
 
@@ -148,18 +198,26 @@ export default function ScannerPage() {
                       Matched on: {match.matchedOn.join(", ")}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => confirmMatch(match)}
-                  >
-                    {match.confidence === "low" ? "Confirm & Add" : "Add to Build"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => confirmMatch(match)}>
+                      {match.confidence === "low" ? "Confirm & Add" : "Add to Build"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push("/build")}
+                    >
+                      Open builder
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
+          ) : listingMode ? (
+            <Button onClick={handleLoadListing}>Load all parts into builder</Button>
           ) : (
             <p className="text-sm text-[var(--color-muted-foreground)]">
-              No matches found. Try the Parts Database to search manually.
+              No matches found. Try the Parts Database or paste a full listing.
             </p>
           )}
         </Card>
@@ -184,33 +242,6 @@ export default function ScannerPage() {
           </div>
         </Card>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>API Integration (Future)</CardTitle>
-          <CardDescription>
-            Architecture supports adding vision APIs for better image recognition
-          </CardDescription>
-        </CardHeader>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="p-3 rounded-lg bg-[var(--color-secondary)]">
-            <p className="font-medium">OpenAI Vision</p>
-            <p className="text-xs text-[var(--color-muted-foreground)]">
-              Not configured
-            </p>
-          </div>
-          <div className="p-3 rounded-lg bg-[var(--color-secondary)]">
-            <p className="font-medium">Google Cloud Vision</p>
-            <p className="text-xs text-[var(--color-muted-foreground)]">
-              Not configured
-            </p>
-          </div>
-          <div className="p-3 rounded-lg bg-[var(--color-secondary)]">
-            <p className="font-medium">Local Pattern Matcher</p>
-            <p className="text-xs text-green-400">Active</p>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }

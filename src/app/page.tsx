@@ -10,7 +10,7 @@ import { formatCurrency } from "@/lib/utils";
 import { getPartCount } from "@/lib/build/helpers";
 import { analyzeCompatibility } from "@/lib/compatibility/engine";
 import { componentMapToEntries } from "@/lib/build/helpers";
-import { estimateCompletePcValue } from "@/lib/pricing/estimator";
+import { estimateFlipResale } from "@/lib/flip/resale";
 import { calculateBuildQualityScore } from "@/lib/reseller/analyzer";
 import {
   Package,
@@ -44,7 +44,10 @@ export default function DashboardPage() {
     [currentBuild]
   );
   const value = useMemo(
-    () => estimateCompletePcValue(entries),
+    () =>
+      entries.length > 0
+        ? estimateFlipResale(entries)
+        : { min: 0, max: 0, mid: 0, marketMid: 0 },
     [entries]
   );
 

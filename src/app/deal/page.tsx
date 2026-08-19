@@ -18,6 +18,8 @@ import { generateListingCopy } from "@/lib/reseller/listing-generator";
 import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
 import { useBuildStore } from "@/lib/inventory/store";
 import { formatCurrency } from "@/lib/utils";
+import { listingHintToCondition } from "@/lib/flip/conditions";
+import { FLIP_OTHER_EXPENSES, FLIP_PLATFORM_SHIPPING } from "@/lib/flip/defaults";
 import { PageHeader } from "@/components/layout/page-header";
 import { DealIntelPanel } from "@/components/deal/deal-intel-panel";
 import { ListingGeneratorPanel } from "@/components/deal/listing-generator-panel";
@@ -102,8 +104,8 @@ export default function DealAnalyzerPage() {
     return compareAllPlatforms({
       salePrice: deal.estimatedResaleValue,
       purchasePrice: deal.listingPrice,
-      shippingCost: 25,
-      otherExpenses: 15,
+      shippingCost: FLIP_PLATFORM_SHIPPING,
+      otherExpenses: FLIP_OTHER_EXPENSES,
     });
   }, [deal]);
 
@@ -123,8 +125,37 @@ export default function DealAnalyzerPage() {
   const handleAnalyze = () => setAnalyzed(true);
 
   const handleLoadBuild = () => {
-    loadBuild(parts, "Deal Analysis Build");
+    if (!scrape || !deal) return;
+    loadBuild(parts, {
+      name: "Deal Analysis Build",
+      defaultCondition: listingHintToCondition(scrape.hints.condition),
+      costs: {
+        purchasePrice: deal.listingPrice,
+        targetSellingPrice: deal.estimatedResaleValue,
+        shippingCosts: FLIP_PLATFORM_SHIPPING,
+        otherExpenses: FLIP_OTHER_EXPENSES,
+      },
+      inventoryId: null,
+    });
     router.push("/build");
+  };
+
+  const handleOpenProfit = () => {
+    if (!deal) return;
+    loadBuild(parts, {
+      name: "Deal Analysis Build",
+      defaultCondition: scrape
+        ? listingHintToCondition(scrape.hints.condition)
+        : "used",
+      costs: {
+        purchasePrice: deal.listingPrice,
+        targetSellingPrice: deal.estimatedResaleValue,
+        shippingCosts: FLIP_PLATFORM_SHIPPING,
+        otherExpenses: FLIP_OTHER_EXPENSES,
+      },
+      inventoryId: null,
+    });
+    router.push("/profit");
   };
 
   const bestPlatform = platformResults[0];
@@ -160,13 +191,22 @@ export default function DealAnalyzerPage() {
               Analyze deal
             </Button>
             {analyzed && Object.keys(parts).length > 0 && (
-              <Button
-                variant="outline"
-                onClick={handleLoadBuild}
-                className="w-full sm:w-auto"
-              >
-                Open in 3D builder
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleLoadBuild}
+                  className="w-full sm:w-auto"
+                >
+                  Open in 3D builder
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleOpenProfit}
+                  className="w-full sm:w-auto"
+                >
+                  Open profit calculator
+                </Button>
+              </>
             )}
           </div>
         </Card>

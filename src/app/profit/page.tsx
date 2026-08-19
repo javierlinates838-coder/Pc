@@ -1,42 +1,68 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useBuildStore, useInventoryStore, useSettingsStore } from "@/lib/inventory/store";
+import { Badge } from "@/components/ui/badge";
+import {
+  useBuildStore,
+  useInventoryStore,
+  useSettingsStore,
+} from "@/lib/inventory/store";
 import { calculateProfit } from "@/lib/reseller/profit";
 import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
 import { PlatformProfitTable } from "@/components/marketplace/platform-profit-table";
-import { componentMapToEntries } from "@/lib/build/helpers";
-import { estimateCompletePcValue } from "@/lib/pricing/estimator";
+import { componentMapToEntries, getPartCount } from "@/lib/build/helpers";
+import { estimateFlipResale } from "@/lib/flip/resale";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/page-header";
 import type { ResellerCosts } from "@/lib/types/reseller";
 
 export default function ProfitCalculatorPage() {
-  const { currentBuild } = useBuildStore();
+  const router = useRouter();
+  const {
+    currentBuild,
+    conditions,
+    buildName,
+    flipCosts,
+    setFlipCosts,
+    activeInventoryId,
+    updateActiveInventory,
+  } = useBuildStore();
   const { addPC } = useInventoryStore();
   const { defaultMarketplaceFee, defaultShippingCost } = useSettingsStore();
 
+  const partCount = getPartCount(currentBuild);
   const entries = useMemo(
-    () => componentMapToEntries(currentBuild),
-    [currentBuild]
+    () => componentMapToEntries(currentBuild, conditions),
+    [currentBuild, conditions]
   );
   const suggestedSale = useMemo(
-    () => estimateCompletePcValue(entries).mid,
+    () => (entries.length > 0 ? estimateFlipResale(entries).mid : 0),
     [entries]
   );
 
-  const [costs, setCosts] = useState<ResellerCosts>({
-    purchasePrice: 300,
-    repairCosts: 0,
-    upgradeCosts: 80,
-    shippingCosts: defaultShippingCost,
-    marketplaceFeePercent: defaultMarketplaceFee,
-    otherExpenses: 20,
-    targetSellingPrice: suggestedSale || 600,
-  });
+  const [costs, setCosts] = useState<ResellerCosts>(flipCosts);
+  const [salePriceTouched, setSalePriceTouched] = useState(
+    flipCosts.targetSellingPrice > 0
+  );
+
+  // Hydrate from shared flip session when navigating from Deal / Inventory
+  useEffect(() => {
+    setCosts(flipCosts);
+    setSalePriceTouched(flipCosts.targetSellingPrice > 0);
+  }, [flipCosts]);
+
+  // Sync suggested sale when build changes (unless user set sale price manually)
+  useEffect(() => {
+    if (!salePriceTouched && suggestedSale > 0) {
+      const next = { ...costs, targetSellingPrice: suggestedSale };
+      setCosts(next);
+      setFlipCosts({ targetSellingPrice: suggestedSale });
+    }
+  }, [suggestedSale, salePriceTouched]); // intentionally not including costs
 
   const profit = useMemo(() => calculateProfit(costs), [costs]);
 
@@ -54,12 +80,41 @@ export default function ProfitCalculatorPage() {
   );
 
   const updateCost = (key: keyof ResellerCosts, value: number) => {
-    setCosts((prev) => ({ ...prev, [key]: value }));
+    if (key === "targetSellingPrice") setSalePriceTouched(true);
+    setCosts((prev) => {
+      const next = { ...prev, [key]: value };
+      setFlipCosts(next);
+      return next;
+    });
   };
 
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
   const handleSave = () => {
-    addPC(currentBuild, costs, `PC Flip — ${formatCurrency(costs.purchasePrice)}`);
-    alert("Saved to inventory!");
+    if (partCount === 0) {
+      setSaveMessage("Add parts first — analyze a deal or open the builder.");
+      setTimeout(() => setSaveMessage(null), 2500);
+      return;
+    }
+
+    if (activeInventoryId) {
+      const ok = updateActiveInventory();
+      setSaveMessage(
+        ok ? "Updated inventory PC with these costs." : "Could not update inventory."
+      );
+    } else {
+      const pc = addPC(
+        currentBuild,
+        costs,
+        buildName || `PC Flip — ${formatCurrency(costs.purchasePrice)}`,
+        conditions
+      );
+      if (pc) {
+        useBuildStore.setState({ activeInventoryId: pc.id });
+        setSaveMessage("Saved to inventory — linked to this session.");
+      }
+    }
+    setTimeout(() => setSaveMessage(null), 2500);
   };
 
   const fields: { key: keyof ResellerCosts; label: string }[] = [
@@ -76,16 +131,58 @@ export default function ProfitCalculatorPage() {
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Profit Calculator"
-        description="Reseller mode — calculate ROI, break-even, and max purchase price"
+        description="Same numbers as Deal and Build — purchase price, fees, and resale stay in sync"
       />
+
+      <Card className="border-[var(--color-border)]">
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="text-base">Current rig</CardTitle>
+            {partCount > 0 ? (
+              <Badge variant="secondary">{partCount} parts loaded</Badge>
+            ) : (
+              <Badge variant="warning">No parts — analyze a deal first</Badge>
+            )}
+            {activeInventoryId && (
+              <Badge variant="secondary">Editing inventory PC</Badge>
+            )}
+          </div>
+          <CardDescription>
+            {buildName}
+            {suggestedSale > 0 &&
+              ` · Suggested list price: ${formatCurrency(suggestedSale)}`}
+          </CardDescription>
+        </CardHeader>
+        <div className="flex flex-wrap gap-2 px-4 pb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/build")}
+          >
+            Open 3D builder
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/deal")}
+          >
+            Analyze listing
+          </Button>
+        </div>
+      </Card>
+
+      {saveMessage && (
+        <p className="text-center text-sm text-[var(--color-primary)]">
+          {saveMessage}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Costs & Pricing</CardTitle>
             <CardDescription>
-              {suggestedSale > 0 &&
-                `Suggested sale price based on build: ${formatCurrency(suggestedSale)}`}
+              Changes here update Build and Deal-linked sessions automatically
             </CardDescription>
           </CardHeader>
           <div className="space-y-4">
@@ -188,15 +285,15 @@ export default function ProfitCalculatorPage() {
             </div>
           </Card>
 
-          <Button onClick={handleSave} className="w-full">
-            Save to inventory
+          <Button onClick={handleSave} className="w-full" disabled={partCount === 0}>
+            {activeInventoryId ? "Update inventory PC" : "Save to inventory"}
           </Button>
 
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Sell on best platform</CardTitle>
               <CardDescription>
-                Compare net profit after real fees (eBay, FB, Mercari, HWSwap…)
+                Same platform table as Deal analyzer
               </CardDescription>
             </CardHeader>
             <PlatformProfitTable results={platformResults} />
