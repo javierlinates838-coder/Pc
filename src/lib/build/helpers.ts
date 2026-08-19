@@ -1,12 +1,24 @@
-import type { ComponentMap, BuildPartEntry, PCBuild, Storage } from "@/lib/types/components";
+import type { ComponentMap, BuildPartEntry, PCBuild, Storage, Condition } from "@/lib/types/components";
+import { getConditionForComponent } from "@/lib/flip/conditions";
 
-export function componentMapToEntries(parts: ComponentMap): BuildPartEntry[] {
+export function componentMapToEntries(
+  parts: ComponentMap,
+  conditions?: Partial<Record<string, Condition>>
+): BuildPartEntry[] {
   const entries: BuildPartEntry[] = [];
   for (const [key, value] of Object.entries(parts)) {
     if (key === "storage" && Array.isArray(value)) {
-      for (const s of value) entries.push({ component: s, condition: "used" });
+      for (const s of value) {
+        entries.push({
+          component: s,
+          condition: getConditionForComponent(s.id, conditions ?? {}),
+        });
+      }
     } else if (value && !Array.isArray(value)) {
-      entries.push({ component: value, condition: "used" });
+      entries.push({
+        component: value,
+        condition: getConditionForComponent(value.id, conditions ?? {}),
+      });
     }
   }
   return entries;
@@ -33,6 +45,21 @@ export function pcBuildToComponentMap(build: PCBuild): ComponentMap {
       if (cat !== "storage") {
         (map as Record<string, unknown>)[cat] = entry.component;
       }
+    }
+  }
+  return map;
+}
+
+export function conditionsFromPcBuild(build: PCBuild): Partial<Record<string, Condition>> {
+  const map: Partial<Record<string, Condition>> = {};
+  for (const entry of Object.values(build.parts)) {
+    if (!entry) continue;
+    if (Array.isArray(entry)) {
+      for (const e of entry) {
+        map[e.component.id] = e.condition;
+      }
+    } else {
+      map[entry.component.id] = entry.condition;
     }
   }
   return map;

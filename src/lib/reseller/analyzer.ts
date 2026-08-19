@@ -14,14 +14,25 @@ import {
   estimateCompletePcValue,
 } from "@/lib/pricing/estimator";
 import { calculateProfit } from "./profit";
-import { parseDealListing, extractListingPrice } from "./listing-parser";
+import {
+  scrapeListingText,
+  extractListingPrice,
+  type ListingParseResult,
+} from "./listing-parser";
+import { getBestPlatform } from "@/lib/marketplaces/calculate";
+import { FLIP_OTHER_EXPENSES, FLIP_PLATFORM_SHIPPING } from "@/lib/flip/defaults";
+import { estimateFlipResale } from "@/lib/flip/resale";
 import type { CPU, GPU, RAM, Storage, Motherboard, Cooler, PSU, Case } from "@/lib/types/components";
 
 export { parseDealListing, extractListingPrice, scrapeListingText } from "./listing-parser";
 
-export function analyzeDeal(listingText: string): DealAnalysis {
-  const parts = parseDealListing(listingText);
-  const listingPrice = extractListingPrice(listingText);
+export function analyzeDeal(
+  listingText: string,
+  scrapeResult?: ListingParseResult
+): DealAnalysis {
+  const scrape = scrapeResult ?? scrapeListingText(listingText);
+  const parts = scrape.parts;
+  const listingPrice = scrape.listingPrice || extractListingPrice(listingText);
 
   const buildEntries: BuildPartEntry[] = [];
   const parsedParts: string[] = [];
@@ -39,16 +50,15 @@ export function analyzeDeal(listingText: string): DealAnalysis {
   }
 
   const marketValue = estimateCompletePcValue(buildEntries);
-  const resaleValue = {
-    min: Math.round(marketValue.min * 1.05),
-    max: Math.round(marketValue.max * 1.1),
-    mid: Math.round(marketValue.mid * 1.08),
-  };
+  const resaleValue = estimateFlipResale(buildEntries);
 
-  const profitAtListing = resaleValue.mid - listingPrice;
-  const feePercent = 10;
-  const netProfit =
-    resaleValue.mid - listingPrice - resaleValue.mid * (feePercent / 100);
+  const bestPlatform = getBestPlatform({
+    salePrice: resaleValue.mid,
+    purchasePrice: listingPrice,
+    shippingCost: FLIP_PLATFORM_SHIPPING,
+    otherExpenses: FLIP_OTHER_EXPENSES,
+  });
+  const netProfit = bestPlatform.netProfit;
 
   const valuableParts: string[] = [];
   const weakParts: string[] = [];
@@ -224,9 +234,9 @@ export function generateResellerRecommendation(
     purchasePrice: listingPrice,
     repairCosts: 0,
     upgradeCosts: upgradeCost,
-    shippingCosts: 20,
+    shippingCosts: FLIP_PLATFORM_SHIPPING,
     marketplaceFeePercent: 10,
-    otherExpenses: 15,
+    otherExpenses: FLIP_OTHER_EXPENSES,
     targetSellingPrice: resale.mid,
   });
 

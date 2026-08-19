@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useBuildStore, useSettingsStore } from "@/lib/inventory/store";
 import { PartSelector } from "@/components/build/part-selector";
@@ -23,35 +24,60 @@ import {
 } from "@/lib/reseller/analyzer";
 import { componentMapToEntries, getPartCount } from "@/lib/build/helpers";
 import { getBuildFinancialSummary } from "@/lib/build/financial-summary";
-import { getVisualizerMeta } from "@/lib/build/visualizer-labels";
+import { getVisualizerSceneData } from "@/lib/build/visualizer-scene";
+import { GameFpsPanel } from "@/components/build/game-fps-panel";
+import { BuildExportPanel } from "@/components/build/build-export-panel";
 import {
   compareValueStrategies,
   estimatePartValue,
 } from "@/lib/pricing/estimator";
 import { formatCurrency } from "@/lib/utils";
 import { VerdictBadge } from "@/components/ui/status-badge";
+import { Select } from "@/components/ui/select";
+import type { Condition } from "@/lib/types/components";
+
+const CONDITION_OPTIONS: { value: Condition; label: string }[] = [
+  { value: "new", label: "New" },
+  { value: "like-new", label: "Like new" },
+  { value: "used", label: "Used" },
+  { value: "fair", label: "Fair" },
+  { value: "parts", label: "Parts / not working" },
+];
 
 export default function BuildAnalyzerPage() {
-  const { currentBuild, buildName, setBuildName, saveCurrentBuild } = useBuildStore();
+  const router = useRouter();
+  const {
+    currentBuild,
+    conditions,
+    buildName,
+    setBuildName,
+    saveCurrentBuild,
+    flipCosts,
+    setAllConditions,
+    activeInventoryId,
+    updateActiveInventory,
+  } = useBuildStore();
   const { defaultShippingCost } = useSettingsStore();
   const [partsOpen, setPartsOpen] = useState(true);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
 
   const partCount = getPartCount(currentBuild);
   const entries = useMemo(
-    () => componentMapToEntries(currentBuild),
-    [currentBuild]
+    () => componentMapToEntries(currentBuild, conditions),
+    [currentBuild, conditions]
   );
   const hasParts = entries.length > 0;
 
-  const visualizerMeta = useMemo(
-    () => getVisualizerMeta(currentBuild),
+  const visualizerScene = useMemo(
+    () => getVisualizerSceneData(currentBuild),
     [currentBuild]
   );
 
   const financials = useMemo(
-    () => getBuildFinancialSummary(entries, defaultShippingCost),
-    [entries, defaultShippingCost]
+    () => getBuildFinancialSummary(entries, defaultShippingCost, flipCosts),
+    [entries, defaultShippingCost, flipCosts]
   );
 
   const compat = useMemo(
@@ -75,19 +101,87 @@ export default function BuildAnalyzerPage() {
     [currentBuild]
   );
   const recommendation = useMemo(
-    () => generateResellerRecommendation(currentBuild, 0),
-    [currentBuild]
+    () => generateResellerRecommendation(currentBuild, flipCosts.purchasePrice),
+    [currentBuild, flipCosts.purchasePrice]
   );
+
+  const overallCondition =
+    entries[0]?.condition ?? ("used" as Condition);
+
+  const handleSave = () => {
+    const ok = saveCurrentBuild();
+    if (!ok) {
+      setSaveMessage("Add at least one part before saving.");
+    } else {
+      setSaveMessage("Build saved on this device.");
+    }
+    setTimeout(() => setSaveMessage(null), 2500);
+  };
+
+  const handleUpdateInventory = () => {
+    const ok = updateActiveInventory();
+    setInventoryMessage(
+      ok ? "Inventory updated with current parts and costs." : "No linked inventory PC to update."
+    );
+    setTimeout(() => setInventoryMessage(null), 2500);
+  };
 
   return (
     <div className="space-y-4 sm:space-y-5">
       <BuildRigHeader
         buildName={buildName}
         onNameChange={setBuildName}
-        onSave={() => saveCurrentBuild()}
+        onSave={handleSave}
       />
+      {saveMessage && (
+        <p className="text-center text-xs text-[var(--color-primary)]">
+          {saveMessage}
+        </p>
+      )}
+      {inventoryMessage && (
+        <p className="text-center text-xs text-[var(--color-success)]">
+          {inventoryMessage}
+        </p>
+      )}
 
-      <BuildVisualizer meta={visualizerMeta} hasParts={hasParts} />
+      {hasParts && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-xs text-[var(--color-muted-foreground)]">
+            Part condition
+          </label>
+          <Select
+            value={overallCondition}
+            onChange={(e) => setAllConditions(e.target.value as Condition)}
+            className="h-9 w-auto min-w-[140px] text-xs"
+          >
+            {CONDITION_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </Select>
+          {flipCosts.purchasePrice > 0 && (
+            <Badge variant="secondary">
+              Paid {formatCurrency(flipCosts.purchasePrice)}
+            </Badge>
+          )}
+          {activeInventoryId && (
+            <Badge variant="secondary">Linked to inventory</Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/profit")}
+          >
+            Edit costs & profit
+          </Button>
+          {activeInventoryId && (
+            <Button variant="outline" size="sm" onClick={handleUpdateInventory}>
+              Update inventory
+            </Button>
+          )}
+        </div>
+      )}
+
+      <BuildVisualizer scene={visualizerScene} hasParts={hasParts} />
 
       {hasParts && (
         <BuildFinancialBar
@@ -95,6 +189,9 @@ export default function BuildAnalyzerPage() {
           costTotal={financials.costTotal}
           listPrice={financials.listPrice}
           profit={financials.profit}
+          purchasePrice={financials.purchasePrice}
+          netProfitAfterFees={financials.netProfitAfterFees}
+          bestPlatformName={financials.bestPlatformName}
         />
       )}
 
@@ -134,6 +231,32 @@ export default function BuildAnalyzerPage() {
             overallStatus={compat.overallStatus}
           />
 
+          <Card className="border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5">
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="text-base">Quick read</CardTitle>
+                <VerdictBadge verdict={recommendation.verdict} />
+              </div>
+              <CardDescription>
+                Quality {quality.total}/100 · List est.{" "}
+                {formatCurrency(financials.listPrice)}
+                {financials.netProfitAfterFees !== null
+                  ? ` · Profit ${formatCurrency(financials.netProfitAfterFees)} after fees`
+                  : ` · Parts margin ${formatCurrency(financials.profit)}`}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <GameFpsPanel gpu={currentBuild.gpu} />
+
+          <BuildExportPanel
+            build={currentBuild}
+            buildName={buildName}
+            listPrice={financials.listPrice}
+            purchasePrice={flipCosts.purchasePrice}
+            profit={financials.netProfitAfterFees ?? financials.profit}
+          />
+
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
             <button
               type="button"
@@ -141,10 +264,9 @@ export default function BuildAnalyzerPage() {
               className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
             >
               <div>
-                <p className="text-sm font-semibold">Full analysis</p>
+                <p className="text-sm font-semibold">Detailed analysis</p>
                 <p className="text-[10px] text-[var(--color-muted-foreground)]">
-                  Quality {quality.total}/100 · Verdict:{" "}
-                  <VerdictBadge verdict={recommendation.verdict} />
+                  Part values, upgrades, compatibility details
                 </p>
               </div>
               {analysisOpen ? (

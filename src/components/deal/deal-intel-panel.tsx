@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface DealIntelPanelProps {
   intel: DealIntelligence;
+  compact?: boolean;
 }
 
 const SEVERITY_STYLES = {
@@ -15,16 +16,19 @@ const SEVERITY_STYLES = {
   positive: "border-green-500/40 bg-green-500/10 text-green-300",
 };
 
-export function DealIntelPanel({ intel }: DealIntelPanelProps) {
+export function DealIntelPanel({ intel, compact = false }: DealIntelPanelProps) {
+  const redFlags = intel.redFlags.slice(0, compact ? 6 : 12);
+  const strengths = intel.strengths.slice(0, compact ? 4 : 8);
+
   return (
     <div className="space-y-4">
-      {intel.redFlags.length > 0 && (
-        <Card className="border-red-500/20">
-          <CardHeader>
-            <CardTitle className="text-base text-red-400">Red flags</CardTitle>
-          </CardHeader>
+      {redFlags.length > 0 && (
+        <div>
+          {!compact && (
+            <p className="mb-2 text-sm font-semibold text-red-400">Watch out for</p>
+          )}
           <ul className="space-y-2">
-            {intel.redFlags.map((item, i) => (
+            {redFlags.map((item, i) => (
               <li
                 key={i}
                 className={`rounded-xl border p-3 text-sm ${SEVERITY_STYLES[item.severity]}`}
@@ -34,10 +38,10 @@ export function DealIntelPanel({ intel }: DealIntelPanelProps) {
               </li>
             ))}
           </ul>
-        </Card>
+        </div>
       )}
 
-      {intel.strengths.length > 0 && (
+      {strengths.length > 0 && !compact && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base text-[var(--color-success)]">
@@ -45,7 +49,7 @@ export function DealIntelPanel({ intel }: DealIntelPanelProps) {
             </CardTitle>
           </CardHeader>
           <ul className="space-y-2 text-sm">
-            {intel.strengths.map((item, i) => (
+            {strengths.map((item, i) => (
               <li key={i} className="rounded-lg bg-[var(--color-secondary)]/50 p-2">
                 <span className="font-medium">{item.title}</span>
                 <span className="text-[var(--color-muted-foreground)]">
@@ -57,35 +61,30 @@ export function DealIntelPanel({ intel }: DealIntelPanelProps) {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Inspection checklist</CardTitle>
-        </CardHeader>
-        <ul className="space-y-1 text-sm">
-          {intel.inspectionChecklist.map((item, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="text-[var(--color-primary)]">□</span>
-              {item}
-            </li>
-          ))}
-        </ul>
-      </Card>
+      {intel.inspectionChecklist.length > 0 && (
+        <div>
+          <p className="mb-2 text-sm font-semibold">Before you buy</p>
+          <ul className="space-y-1 text-sm">
+            {intel.inspectionChecklist.map((item, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="text-[var(--color-primary)]">□</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-      <Card className="border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5">
-        <CardHeader>
-          <CardTitle className="text-base">Why we beat spreadsheets</CardTitle>
-        </CardHeader>
-        <ul className="space-y-2 text-xs text-[var(--color-muted-foreground)]">
-          {intel.competitorGaps.map((g, i) => (
-            <li key={i}>• {g}</li>
-          ))}
-        </ul>
-        <div className="mt-3 flex flex-wrap gap-1">
+      {intel.bestPlatforms.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          <span className="text-xs text-[var(--color-muted-foreground)]">
+            Good channels:
+          </span>
           {intel.bestPlatforms.map((p) => (
             <Badge key={p} variant="secondary">{p}</Badge>
           ))}
         </div>
-      </Card>
+      )}
     </div>
   );
 }

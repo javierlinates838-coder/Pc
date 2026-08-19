@@ -1,90 +1,223 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
-import { Edges, Html, OrbitControls } from "@react-three/drei";
-import type { VisualizerLabel } from "@/lib/build/visualizer-labels";
+import { Suspense, useMemo, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Edges, Grid, Html, OrbitControls } from "@react-three/drei";
+import type { PointLight } from "three";
+import type { VisualizerSceneData } from "@/lib/build/visualizer-scene";
 
 interface BuildVisualizer3DProps {
-  labels: VisualizerLabel[];
-  hasParts: boolean;
+  scene: VisualizerSceneData;
+  rgbEnabled: boolean;
+  rgbHue: number;
 }
 
-function WireBox({
+function SolidBox({
   position,
   size,
   color = "#ff4d9d",
-  opacity = 0.15,
+  opacity = 0.85,
+  emissive = 0.15,
+  metalness = 0.4,
 }: {
   position: [number, number, number];
   size: [number, number, number];
   color?: string;
   opacity?: number;
+  emissive?: number;
+  metalness?: number;
 }) {
   return (
     <mesh position={position}>
       <boxGeometry args={size} />
       <meshStandardMaterial
-        color="#1a0a24"
-        transparent
+        color={color}
+        transparent={opacity < 1}
         opacity={opacity}
+        metalness={metalness}
+        roughness={0.35}
         emissive={color}
-        emissiveIntensity={0.08}
+        emissiveIntensity={emissive}
       />
-      <Edges color={color} threshold={12} />
+      <Edges color={color} threshold={15} />
     </mesh>
   );
 }
 
-function CaseScene({ labels, hasParts }: BuildVisualizer3DProps) {
-  const labelMeshes = useMemo(() => labels, [labels]);
+function RgbGlow({ enabled, hue }: { enabled: boolean; hue: number }) {
+  const ref = useRef<PointLight>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current || !enabled) return;
+    const t = clock.getElapsedTime();
+    const intensity = 0.6 + Math.sin(t * 2) * 0.25;
+    ref.current.intensity = intensity;
+    const h = (hue + t * 0.1) % 1;
+    ref.current.color.setHSL(h, 0.85, 0.55);
+  });
+  if (!enabled) return null;
+  return (
+    <pointLight ref={ref} position={[0, 0.8, 0.6]} intensity={0.8} distance={4} />
+  );
+}
+
+function FanSlot({
+  position,
+  rgb,
+}: {
+  position: [number, number, number];
+  rgb: boolean;
+}) {
+  return (
+    <group position={position}>
+      <mesh rotation={[0, 0, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.04, 16]} />
+        <meshStandardMaterial
+          color={rgb ? "#ff4d9d" : "#2a2038"}
+          emissive={rgb ? "#ff4d9d" : "#1a1020"}
+          emissiveIntensity={rgb ? 0.5 : 0.05}
+          metalness={0.6}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function CaseScene({ scene, rgbEnabled, rgbHue }: BuildVisualizer3DProps) {
+  const { labels, hasParts, gpuScale, gpuSlotHeight, coolerScale, coolerIsAio, fanCount } =
+    scene;
+
+  const gpuWidth = 0.55 * gpuScale;
+  const gpuHeight = 0.18 * gpuSlotHeight;
+  const gpuDepth = 0.28 * gpuScale;
+
+  const fanPositions: [number, number, number][] = [
+    [-0.5, 0.35, 0.52],
+    [-0.15, 0.35, 0.52],
+    [0.2, 0.35, 0.52],
+    [0.45, 0.35, 0.52],
+  ];
 
   return (
     <>
-      <ambientLight intensity={0.45} />
-      <pointLight position={[4, 5, 4]} intensity={1.2} color="#ff6eb4" />
-      <pointLight position={[-3, 2, -2]} intensity={0.4} color="#a855f7" />
+      <color attach="background" args={["#08040c"]} />
+      <fog attach="fog" args={["#08040c", 6, 14]} />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[5, 8, 5]} intensity={1.1} color="#ffd4e8" />
+      <directionalLight position={[-4, 3, -3]} intensity={0.35} color="#a855f7" />
+      <RgbGlow enabled={rgbEnabled && scene.hasRgb} hue={rgbHue} />
 
-      {/* Outer case shell */}
-      <WireBox position={[0, 0.6, 0]} size={[2.4, 2.2, 1.1]} color="#ff4d9d" opacity={0.08} />
+      <Grid
+        position={[0, -0.05, 0]}
+        infiniteGrid
+        cellSize={0.25}
+        cellThickness={0.4}
+        sectionSize={1}
+        sectionThickness={0.8}
+        fadeDistance={12}
+        cellColor="#2a1838"
+        sectionColor="#ff4d9d"
+      />
 
-      {/* Motherboard plane */}
+      {/* Case chassis */}
+      <SolidBox
+        position={[0, 0.65, 0]}
+        size={[2.5, 2.35, 1.15]}
+        color="#1a1028"
+        opacity={0.35}
+        emissive={0.02}
+        metalness={0.2}
+      />
+
+      {/* Glass side panel */}
+      <mesh position={[0, 0.65, 0.58]} rotation={[0, 0, 0]}>
+        <boxGeometry args={[2.48, 2.3, 0.02]} />
+        <meshPhysicalMaterial
+          color="#ff9ecf"
+          transparent
+          opacity={0.12}
+          metalness={0.1}
+          roughness={0.05}
+          transmission={0.6}
+          thickness={0.1}
+        />
+      </mesh>
+
       {hasParts && (
-        <WireBox position={[-0.15, 0.55, -0.05]} size={[0.9, 0.65, 0.04]} color="#e879f9" />
+        <SolidBox
+          position={[-0.12, 0.58, -0.02]}
+          size={[0.95, 0.7, 0.05]}
+          color="#c084fc"
+          emissive={0.12}
+        />
       )}
 
-      {/* GPU */}
-      {labelMeshes.some((l) => l.id === "gpu") && (
-        <WireBox position={[0.35, 0.5, 0.25]} size={[0.75, 0.22, 0.35]} color="#ff4d9d" />
+      {labels.some((l) => l.id === "gpu") && (
+        <SolidBox
+          position={[0.32, 0.52, 0.22]}
+          size={[gpuWidth, gpuHeight, gpuDepth]}
+          color="#ff4d9d"
+          emissive={rgbEnabled && scene.hasRgb ? 0.35 : 0.2}
+        />
       )}
 
-      {/* PSU */}
-      {labelMeshes.some((l) => l.id === "psu") && (
-        <WireBox position={[0.75, 0.15, 0]} size={[0.35, 0.25, 0.5]} color="#c084fc" />
+      {labels.some((l) => l.id === "psu") && (
+        <SolidBox
+          position={[0.78, 0.18, 0]}
+          size={[0.38, 0.28, 0.52]}
+          color="#7c3aed"
+          emissive={0.1}
+        />
       )}
 
-      {/* Cooler block */}
-      {labelMeshes.some((l) => l.id === "cooler") && (
-        <WireBox position={[-0.1, 0.72, 0]} size={[0.35, 0.35, 0.35]} color="#f472b6" />
+      {labels.some((l) => l.id === "cooler") && (
+        <>
+          {coolerIsAio ? (
+            <SolidBox
+              position={[-0.08, 0.78, -0.35]}
+              size={[0.9, 0.55, 0.06]}
+              color="#f472b6"
+              emissive={0.25}
+            />
+          ) : null}
+          <SolidBox
+            position={[-0.08, 0.72, 0]}
+            size={[0.32 * coolerScale, 0.32 * coolerScale, 0.32 * coolerScale]}
+            color="#f472b6"
+            emissive={rgbEnabled && scene.hasRgb ? 0.3 : 0.15}
+          />
+        </>
       )}
 
-      {/* Floating labels */}
-      {labelMeshes.map((label) => (
+      {labels.some((l) => l.id === "ram") && (
+        <SolidBox
+          position={[0.05, 0.62, 0.08]}
+          size={[0.35, 0.22, 0.06]}
+          color="#e879f9"
+          emissive={rgbEnabled && scene.hasRgb ? 0.4 : 0.12}
+        />
+      )}
+
+      {fanCount > 0 &&
+        fanPositions.slice(0, Math.min(fanCount, 4)).map((pos, i) => (
+          <FanSlot key={i} position={pos} rgb={rgbEnabled && scene.hasRgb} />
+        ))}
+
+      {labels.map((label) => (
         <Html
           key={label.id}
           position={[
-            (label.x - 0.5) * 2.2,
-            label.y * 1.8,
-            (label.z - 0.5) * 1.2,
+            (label.x - 0.5) * 2.3,
+            label.y * 1.85 + 0.1,
+            (label.z - 0.5) * 1.1,
           ]}
           center
-          distanceFactor={6}
+          distanceFactor={7}
           style={{ pointerEvents: "none" }}
         >
           <div
-            className="rounded-md border border-[#ff4d9d]/40 bg-[#120818]/90 px-2 py-1 text-[10px] leading-tight shadow-[0_0_12px_rgba(255,77,157,0.25)] backdrop-blur-sm"
+            className="rounded-lg border border-[#ff4d9d]/50 bg-[#0a0610]/95 px-2.5 py-1.5 text-[10px] leading-tight shadow-[0_0_20px_rgba(255,77,157,0.35)] backdrop-blur-md"
           >
-            <p className="font-semibold text-white">{label.text}</p>
+            <p className="font-bold text-white">{label.text}</p>
             {label.subtext && (
               <p className="text-[9px] text-[#f9a8d4]">{label.subtext}</p>
             )}
@@ -94,24 +227,29 @@ function CaseScene({ labels, hasParts }: BuildVisualizer3DProps) {
 
       <OrbitControls
         enablePan={false}
-        minDistance={3}
-        maxDistance={7}
-        maxPolarAngle={Math.PI / 1.8}
-        minPolarAngle={0.3}
+        minDistance={2.8}
+        maxDistance={6.5}
+        maxPolarAngle={Math.PI / 1.75}
+        minPolarAngle={0.25}
+        autoRotate={!hasParts}
+        autoRotateSpeed={0.4}
       />
     </>
   );
 }
 
-export function BuildVisualizer3D({ labels, hasParts }: BuildVisualizer3DProps) {
+export function BuildVisualizer3D({ scene, rgbEnabled, rgbHue }: BuildVisualizer3DProps) {
+  const stableScene = useMemo(() => scene, [scene]);
+
   return (
     <Canvas
-      camera={{ position: [2.8, 2.2, 3.2], fov: 42 }}
+      camera={{ position: [2.6, 2.1, 3.4], fov: 38 }}
       className="h-full w-full"
-      gl={{ antialias: true, alpha: true }}
+      gl={{ antialias: true, alpha: false }}
+      dpr={[1, 2]}
     >
       <Suspense fallback={null}>
-        <CaseScene labels={labels} hasParts={hasParts} />
+        <CaseScene scene={stableScene} rgbEnabled={rgbEnabled} rgbHue={rgbHue} />
       </Suspense>
     </Canvas>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,7 +11,6 @@ import { DealRatingBadge, VerdictBadge } from "@/components/ui/status-badge";
 import {
   analyzeDeal,
   generateResellerRecommendation,
-  getUpgradeRecommendations,
   scrapeListingText,
 } from "@/lib/reseller/analyzer";
 import { buildDealIntelligence } from "@/lib/reseller/deal-intelligence";
@@ -17,6 +18,8 @@ import { generateListingCopy } from "@/lib/reseller/listing-generator";
 import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
 import { useBuildStore } from "@/lib/inventory/store";
 import { formatCurrency } from "@/lib/utils";
+import { listingHintToCondition } from "@/lib/flip/conditions";
+import { FLIP_OTHER_EXPENSES, FLIP_PLATFORM_SHIPPING } from "@/lib/flip/defaults";
 import { PageHeader } from "@/components/layout/page-header";
 import { DealIntelPanel } from "@/components/deal/deal-intel-panel";
 import { ListingGeneratorPanel } from "@/components/deal/listing-generator-panel";
@@ -28,7 +31,49 @@ B550 motherboard, 750w gold PSU
 Liquid cooled — $450 OBO
 Local pickup only`;
 
+function CollapsibleBlock({
+  title,
+  subtitle,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+      >
+        <div>
+          <p className="text-sm font-semibold">{title}</p>
+          {subtitle && (
+            <p className="text-[10px] text-[var(--color-muted-foreground)]">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {open ? (
+          <ChevronUp className="h-5 w-5 shrink-0 text-[var(--color-muted-foreground)]" />
+        ) : (
+          <ChevronDown className="h-5 w-5 shrink-0 text-[var(--color-muted-foreground)]" />
+        )}
+      </button>
+      {open && (
+        <div className="border-t border-[var(--color-border)] p-4">{children}</div>
+      )}
+    </div>
+  );
+}
+
 export default function DealAnalyzerPage() {
+  const router = useRouter();
   const [listing, setListing] = useState(EXAMPLE_LISTING);
   const [analyzed, setAnalyzed] = useState(false);
   const { loadBuild } = useBuildStore();
@@ -40,8 +85,8 @@ export default function DealAnalyzerPage() {
 
   const parts = scrape?.parts ?? {};
   const deal = useMemo(
-    () => (analyzed ? analyzeDeal(listing) : null),
-    [analyzed, listing]
+    () => (analyzed && scrape ? analyzeDeal(listing, scrape) : null),
+    [analyzed, listing, scrape]
   );
 
   const intel = useMemo(() => {
@@ -59,8 +104,8 @@ export default function DealAnalyzerPage() {
     return compareAllPlatforms({
       salePrice: deal.estimatedResaleValue,
       purchasePrice: deal.listingPrice,
-      shippingCost: 25,
-      otherExpenses: 15,
+      shippingCost: FLIP_PLATFORM_SHIPPING,
+      otherExpenses: FLIP_OTHER_EXPENSES,
     });
   }, [deal]);
 
@@ -77,22 +122,49 @@ export default function DealAnalyzerPage() {
     [analyzed, deal, parts]
   );
 
-  const upgrades = useMemo(
-    () => (analyzed ? getUpgradeRecommendations(parts) : []),
-    [analyzed, parts]
-  );
-
   const handleAnalyze = () => setAnalyzed(true);
 
   const handleLoadBuild = () => {
-    loadBuild(parts, "Deal Analysis Build");
+    if (!scrape || !deal) return;
+    loadBuild(parts, {
+      name: "Deal Analysis Build",
+      defaultCondition: listingHintToCondition(scrape.hints.condition),
+      costs: {
+        purchasePrice: deal.listingPrice,
+        targetSellingPrice: deal.estimatedResaleValue,
+        shippingCosts: FLIP_PLATFORM_SHIPPING,
+        otherExpenses: FLIP_OTHER_EXPENSES,
+      },
+      inventoryId: null,
+    });
+    router.push("/build");
   };
+
+  const handleOpenProfit = () => {
+    if (!deal) return;
+    loadBuild(parts, {
+      name: "Deal Analysis Build",
+      defaultCondition: scrape
+        ? listingHintToCondition(scrape.hints.condition)
+        : "used",
+      costs: {
+        purchasePrice: deal.listingPrice,
+        targetSellingPrice: deal.estimatedResaleValue,
+        shippingCosts: FLIP_PLATFORM_SHIPPING,
+        otherExpenses: FLIP_OTHER_EXPENSES,
+      },
+      inventoryId: null,
+    });
+    router.push("/profit");
+  };
+
+  const bestPlatform = platformResults[0];
 
   return (
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        title="Deal Analyzer"
-        description="Smart listing scraper — expands shorthand, flags mining/OEM risk, compares 12 platforms"
+        title="Check Listing"
+        description="Paste someone's ad. We find the parts, read the price, and estimate if it's a good buy."
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
@@ -100,7 +172,8 @@ export default function DealAnalyzerPage() {
           <CardHeader>
             <CardTitle>Paste listing</CardTitle>
             <CardDescription>
-              URLs stripped · i5/rtx/16gb shorthand expanded · red flags detected
+              Copy text from Facebook, eBay, or Craigslist. Price is read from $
+              amounts in the text.
             </CardDescription>
           </CardHeader>
           <Textarea
@@ -113,135 +186,149 @@ export default function DealAnalyzerPage() {
             placeholder="Paste Facebook, eBay, Craigslist listing..."
             className="font-mono text-xs sm:text-sm"
           />
-          {scrape && scrape.expandedTokens.length > 0 && analyzed && (
-            <p className="mt-2 text-[10px] text-[var(--color-muted-foreground)]">
-              Parsed tokens: {scrape.expandedTokens.slice(0, 8).join(", ")}
-            </p>
-          )}
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <Button onClick={handleAnalyze} className="w-full sm:w-auto">
-              Scrape & analyze
+              Check this deal
             </Button>
-            {analyzed && (
-              <Button
-                variant="outline"
-                onClick={handleLoadBuild}
-                className="w-full sm:w-auto"
-              >
-                Load into 3D build
-              </Button>
+            {analyzed && Object.keys(parts).length > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleLoadBuild}
+                  className="w-full sm:w-auto"
+                >
+                  Open in 3D builder
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleOpenProfit}
+                  className="w-full sm:w-auto"
+                >
+                  Open profit calculator
+                </Button>
+              </>
             )}
           </div>
         </Card>
 
-        {deal && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <CardTitle>Deal rating</CardTitle>
-                  <DealRatingBadge rating={deal.rating} />
-                </div>
-              </CardHeader>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    Listing price
-                  </p>
-                  <p className="text-xl font-bold tabular-nums">
-                    {formatCurrency(deal.listingPrice)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    Est. resale
-                  </p>
-                  <p className="text-xl font-bold tabular-nums text-[var(--color-success)]">
-                    {formatCurrency(deal.estimatedResaleValue)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    Profit potential
-                  </p>
-                  <p
-                    className={`text-xl font-bold tabular-nums ${deal.estimatedProfitPotential >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-destructive)]"}`}
-                  >
-                    {formatCurrency(deal.estimatedProfitPotential)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    Suggested offer
-                  </p>
-                  <p className="text-lg font-bold text-[var(--color-primary)]">
-                    {formatCurrency(deal.suggestedOfferPrice)}
-                  </p>
-                </div>
+        {deal && recommendation && (
+          <Card className="border-[var(--color-primary)]/25">
+            <CardHeader>
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle>Summary</CardTitle>
+                <DealRatingBadge rating={deal.rating} />
+                <VerdictBadge verdict={recommendation.verdict} />
               </div>
-            </Card>
-
-            {platformResults.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Best platform for this flip
-                  </CardTitle>
-                  <CardDescription>
-                    Real fee math — beats single % calculators
-                  </CardDescription>
-                </CardHeader>
-                <PlatformProfitTable results={platformResults} />
-              </Card>
+              <CardDescription>
+                {bestPlatform
+                  ? `Best channel: ${bestPlatform.shortName} (${formatCurrency(bestPlatform.netProfit)} profit after fees)`
+                  : "Profit uses real platform fees, not a flat 10%"}
+              </CardDescription>
+            </CardHeader>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  What they&apos;re asking
+                </p>
+                <p className="text-xl font-bold tabular-nums">
+                  {formatCurrency(deal.listingPrice)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  What you could sell for
+                </p>
+                <p className="text-xl font-bold tabular-nums text-[var(--color-success)]">
+                  {formatCurrency(deal.estimatedResaleValue)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  Your profit after fees
+                </p>
+                <p
+                  className={`text-xl font-bold tabular-nums ${deal.estimatedProfitPotential >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-destructive)]"}`}
+                >
+                  {formatCurrency(deal.estimatedProfitPotential)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  Offer to aim for
+                </p>
+                <p className="text-lg font-bold text-[var(--color-primary)]">
+                  {formatCurrency(deal.suggestedOfferPrice)}
+                </p>
+              </div>
+            </div>
+            {recommendation.reasons[0] && (
+              <p className="mt-3 text-sm text-[var(--color-muted-foreground)]">
+                {recommendation.reasons[0]}
+              </p>
             )}
-
-            {deal.parsedParts.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Detected parts</CardTitle>
-                </CardHeader>
-                <div className="flex flex-wrap gap-2">
-                  {deal.parsedParts.map((p) => (
-                    <Badge key={p} variant="secondary">{p}</Badge>
-                  ))}
-                </div>
-                {scrape && scrape.unparsedLines.length > 0 && (
-                  <p className="mt-3 text-xs text-amber-400/90">
-                    Unparsed: {scrape.unparsedLines.join(" · ")}
-                  </p>
-                )}
-              </Card>
-            )}
-
-            {recommendation && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-base">Verdict</CardTitle>
-                    <VerdictBadge verdict={recommendation.verdict} />
-                  </div>
-                </CardHeader>
-                <ul className="mb-3 space-y-1 text-sm">
-                  {recommendation.reasons.map((r, i) => (
-                    <li key={i}>• {r}</li>
-                  ))}
-                </ul>
-                {upgrades.length > 0 && (
-                  <div className="text-xs text-[var(--color-muted-foreground)]">
-                    Top upgrade: {upgrades[0].recommendedPart}
-                  </div>
-                )}
-              </Card>
-            )}
-          </div>
+          </Card>
         )}
       </div>
 
-      {intel && (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <DealIntelPanel intel={intel} />
+      {deal && (
+        <div className="space-y-3">
+          <CollapsibleBlock
+            title="Detected parts"
+            subtitle={
+              deal.parsedParts.length > 0
+                ? `${deal.parsedParts.length} parts matched`
+                : "No parts detected — check listing text"
+            }
+            defaultOpen={true}
+          >
+            {deal.parsedParts.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {deal.parsedParts.map((p) => (
+                  <Badge key={p} variant="secondary">{p}</Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                We couldn&apos;t match parts. Try spelling out CPU/GPU models or
+                use shorthand like &quot;rtx 3060&quot; and &quot;16gb ram&quot;.
+              </p>
+            )}
+            {scrape && scrape.unparsedLines.length > 0 && (
+              <p className="mt-3 text-xs text-amber-400/90">
+                Not matched: {scrape.unparsedLines.join(" · ")}
+              </p>
+            )}
+          </CollapsibleBlock>
+
+          {platformResults.length > 0 && (
+            <CollapsibleBlock
+              title="Sell on which platform?"
+              subtitle={`${platformResults.length} channels compared — tap to expand`}
+            >
+              <PlatformProfitTable results={platformResults} />
+            </CollapsibleBlock>
+          )}
+
+          {intel && (intel.redFlags.length > 0 || intel.inspectionChecklist.length > 0) && (
+            <CollapsibleBlock
+              title="Warnings & inspection"
+              subtitle={
+                intel.redFlags.length > 0
+                  ? `${intel.redFlags.length} thing(s) to verify`
+                  : "Checklist before you buy"
+              }
+            >
+              <DealIntelPanel intel={intel} compact />
+            </CollapsibleBlock>
+          )}
+
           {generatedListing && (
-            <ListingGeneratorPanel listing={generatedListing} />
+            <CollapsibleBlock
+              title="Listing copy"
+              subtitle="Title and description to paste when you resell"
+            >
+              <ListingGeneratorPanel listing={generatedListing} />
+            </CollapsibleBlock>
           )}
         </div>
       )}
