@@ -4,7 +4,7 @@
   "description": "PC reseller compatibility, profit calculator, and deal analyzer",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0e17",
-  "theme_color": "#0a0e17",
+  "background_color": "#0c0812",
+  "theme_color": "#ff4d9d",
   "orientation": "portrait-primary"
 }
