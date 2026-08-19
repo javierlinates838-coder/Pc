@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { WorkflowGuide } from "@/components/layout/workflow-guide";
+import { BeatBuildCoresCard } from "@/components/layout/beat-buildcores";
 import { useState } from "react";
 
 export default function DashboardPage() {
@@ -76,6 +77,8 @@ export default function DashboardPage() {
       </div>
 
       <WorkflowGuide />
+
+      <BeatBuildCoresCard />
 
       {partCount > 0 && (
         <Card className="border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">

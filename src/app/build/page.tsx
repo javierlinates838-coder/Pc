@@ -24,7 +24,9 @@ import {
 } from "@/lib/reseller/analyzer";
 import { componentMapToEntries, getPartCount } from "@/lib/build/helpers";
 import { getBuildFinancialSummary } from "@/lib/build/financial-summary";
-import { getVisualizerMeta } from "@/lib/build/visualizer-labels";
+import { getVisualizerSceneData } from "@/lib/build/visualizer-scene";
+import { GameFpsPanel } from "@/components/build/game-fps-panel";
+import { BuildExportPanel } from "@/components/build/build-export-panel";
 import {
   compareValueStrategies,
   estimatePartValue,
@@ -68,8 +70,8 @@ export default function BuildAnalyzerPage() {
   );
   const hasParts = entries.length > 0;
 
-  const visualizerMeta = useMemo(
-    () => getVisualizerMeta(currentBuild),
+  const visualizerScene = useMemo(
+    () => getVisualizerSceneData(currentBuild),
     [currentBuild]
   );
 
@@ -179,7 +181,7 @@ export default function BuildAnalyzerPage() {
         </div>
       )}
 
-      <BuildVisualizer meta={visualizerMeta} hasParts={hasParts} />
+      <BuildVisualizer scene={visualizerScene} hasParts={hasParts} />
 
       {hasParts && (
         <BuildFinancialBar
@@ -244,6 +246,16 @@ export default function BuildAnalyzerPage() {
               </CardDescription>
             </CardHeader>
           </Card>
+
+          <GameFpsPanel gpu={currentBuild.gpu} />
+
+          <BuildExportPanel
+            build={currentBuild}
+            buildName={buildName}
+            listPrice={financials.listPrice}
+            purchasePrice={flipCosts.purchasePrice}
+            profit={financials.netProfitAfterFees ?? financials.profit}
+          />
 
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
             <button
