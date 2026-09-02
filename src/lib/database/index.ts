@@ -30,7 +30,9 @@ import { cpuCoolers } from "./coolers";
 import { coolerExtended } from "./coolers/extended";
 import { coolerBatch3 } from "./coolers/batch3";
 import { cpuBatch2 } from "./cpus/batch2";
+import { zen5CPUs } from "./cpus/zen5";
 import { gpuBatch2 } from "./gpus/batch2";
+import { blackwellGPUs } from "./gpus/blackwell";
 import { motherboardBatch2 } from "./motherboards/batch2";
 import { caseFans, wifiModules, operatingSystems } from "./misc";
 import { fansBatch3, wifiBatch3 } from "./misc/batch3";
@@ -41,11 +43,13 @@ export const componentDatabase: PCComponent[] = [
   ...amdRyzenExtended,
   ...intelExtended,
   ...cpuBatch2,
+  ...zen5CPUs,
   ...nvidiaGPUs,
   ...amdGPUs,
   ...nvidiaExtended,
   ...amdGpuExtended,
   ...gpuBatch2,
+  ...blackwellGPUs,
   ...am4Motherboards,
   ...am5Motherboards,
   ...intelMotherboards,

@@ -1,8 +1,6 @@
 import type { ComponentMap } from "@/lib/types/components";
-import {
-  fuzzyMatchComponentScored,
-  searchComponents,
-} from "@/lib/database";
+import { fuzzyMatchComponentScored } from "@/lib/database";
+import { matchComponentFromQuery } from "./part-matcher";
 import type { CPU, GPU, RAM, Storage, Motherboard, Cooler, PSU, Case } from "@/lib/types/components";
 
 export type ListingConditionHint = "new" | "like-new" | "used" | "fair" | "parts" | "unknown";
@@ -64,6 +62,8 @@ const CPU_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\bryzen\s*9\s*(\d{4}[a-z]?)/i, query: "ryzen 9 $1" },
   { pattern: /\br5\s*(\d{4}[a-z]?)/i, query: "ryzen 5 $1" },
   { pattern: /\br7\s*(\d{4}[a-z]?)/i, query: "ryzen 7 $1" },
+  { pattern: /\bryzen\s*7\s*(\d{4}x3d)/i, query: "ryzen 7 $1" },
+  { pattern: /\bryzen\s*9\s*(\d{4}x3d)/i, query: "ryzen 9 $1" },
 ];
 
 const GPU_PATTERNS: { pattern: RegExp; query: string }[] = [
@@ -73,7 +73,8 @@ const GPU_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\b(\d{4})\s*ti\s*super\b/i, query: "rtx $1 ti super" },
   { pattern: /\b(\d{4})\s*ti\b/i, query: "rtx $1 ti" },
   { pattern: /\b(\d{4})\s*super\b/i, query: "rtx $1 super" },
-  { pattern: /\b(30[5-9]\d|40[5-9]\d|50\d{2})\b/i, query: "rtx $1" },
+  { pattern: /\brtx\s*50(\d{2})\s*(ti|super)?/i, query: "rtx 50$1 $2" },
+  { pattern: /\b(50\d{2})\s*(ti|super)?\b/i, query: "rtx $1 $2" },
   { pattern: /\b(\d{4})\s*xt\b/i, query: "rx $1 xt" },
 ];
 
@@ -137,6 +138,12 @@ function expandLine(line: string): string[] {
   const queries: string[] = [line];
 
   for (const [key, expansion] of Object.entries(SHORTHAND_EXPANSIONS)) {
+    if (
+      (key === "nvme" || key === "ssd" || key === "1tb") &&
+      /\d\s*tb/i.test(lower)
+    ) {
+      continue;
+    }
     if (lower.includes(key)) queries.push(expansion);
   }
 
@@ -221,29 +228,16 @@ function tryMatchQuery(
   parts: ComponentMap,
   parsedPartNames: string[]
 ): boolean {
-  const fuzzy = fuzzyMatchComponentScored(q, LINE_MATCH_MIN_SCORE);
-  if (fuzzy.length > 0) {
-    const before = countDetectedParts(parts);
-    assignPart(parts, fuzzy[0].component);
-    if (countDetectedParts(parts) > before) {
-      if (!parsedPartNames.includes(fuzzy[0].component.name)) {
-        parsedPartNames.push(fuzzy[0].component.name);
-      }
-      return true;
+  const matched = matchComponentFromQuery(q);
+  if (!matched) return false;
+
+  const before = countDetectedParts(parts);
+  assignPart(parts, matched);
+  if (countDetectedParts(parts) > before) {
+    if (!parsedPartNames.includes(matched.name)) {
+      parsedPartNames.push(matched.name);
     }
-  }
-  if (q.length >= 4) {
-    const search = searchComponents(q);
-    if (search.length > 0) {
-      const before = countDetectedParts(parts);
-      assignPart(parts, search[0]);
-      if (countDetectedParts(parts) > before) {
-        if (!parsedPartNames.includes(search[0].name)) {
-          parsedPartNames.push(search[0].name);
-        }
-        return true;
-      }
-    }
+    return true;
   }
   return false;
 }
@@ -286,9 +280,15 @@ export function scrapeListingText(text: string): ListingParseResult {
     expandedTokens.push(...queries);
 
     let matched = false;
-    for (const q of queries) {
+    let lineHasStorage = false;
+    for (const q of [...queries].sort((a, b) => b.length - a.length)) {
+      if (lineHasStorage && /\d\s*(tb|gb)|nvme|ssd|hdd/i.test(q)) continue;
+      const storageBefore = parts.storage?.length ?? 0;
       if (tryMatchQuery(q, parts, parsedPartNames)) {
         matched = true;
+        if ((parts.storage?.length ?? 0) > storageBefore) {
+          lineHasStorage = true;
+        }
       }
     }
 
@@ -297,9 +297,9 @@ export function scrapeListingText(text: string): ListingParseResult {
     }
   }
 
-  if (countDetectedParts(parts) < 2) {
+  if (countDetectedParts(parts) === 0) {
     const blobMatches = fuzzyMatchComponentScored(normalized, BLOB_MATCH_MIN_SCORE);
-    for (const { component } of blobMatches.slice(0, 6)) {
+    for (const { component } of blobMatches.slice(0, 4)) {
       assignPart(parts, component);
       if (!parsedPartNames.includes(component.name)) {
         parsedPartNames.push(component.name);
