@@ -598,15 +598,88 @@ export function analyzeCompatibility(parts: ComponentMap): CompatibilityReport {
   }
 
   if (results.length === 0) {
-    results.push(
-      makeResult(
-        "warning",
-        "Insufficient Parts",
-        "Add more components to run a full compatibility analysis.",
-        "General",
-        []
-      )
-    );
+    const present: string[] = [];
+    const missing: string[] = [];
+
+    if (cpu) present.push("CPU");
+    else missing.push("CPU");
+    if (gpu) present.push("GPU");
+    else missing.push("GPU");
+    if (motherboard) present.push("motherboard");
+    else missing.push("motherboard");
+    if (ram) present.push("RAM");
+    else missing.push("RAM");
+    if (psu) present.push("PSU");
+    else missing.push("PSU");
+    if (pcCase) present.push("case");
+    else missing.push("case");
+    if (storage && storage.length > 0) present.push("storage");
+    else missing.push("storage");
+
+    if (present.length === 0) {
+      results.push(
+        makeResult(
+          "warning",
+          "No Parts Added",
+          "Add components to your build to run compatibility checks.",
+          "General",
+          []
+        )
+      );
+    } else {
+      const missingCore = missing.filter((p) =>
+        ["motherboard", "PSU", "case"].includes(p)
+      );
+      const detail =
+        missingCore.length > 0
+          ? `Detected: ${present.join(", ")}. Add ${missingCore.join(", ")} for full socket, power, and clearance checks.`
+          : `Detected: ${present.join(", ")}. Add ${missing.join(", ")} to complete the analysis.`;
+
+      results.push(
+        makeResult(
+          "compatible",
+          "Partial Build Detected",
+          detail,
+          "General",
+          present
+        )
+      );
+
+      if (cpu && ram) {
+        const cpuDdr = cpu.ddrGeneration;
+        if (cpuDdr !== "DDR4|DDR5" && ram.type !== cpuDdr) {
+          results.push(
+            makeResult(
+              "incompatible",
+              "CPU ↔ RAM Type",
+              `${cpu.name} expects ${cpuDdr} but ${ram.name} is ${ram.type}.`,
+              "CPU ↔ RAM",
+              [cpu.name, ram.name]
+            )
+          );
+        } else {
+          results.push(
+            makeResult(
+              "compatible",
+              "CPU ↔ RAM Type",
+              `${cpu.name} and ${ram.name} both use ${ram.type}.`,
+              "CPU ↔ RAM",
+              [cpu.name, ram.name]
+            )
+          );
+        }
+      }
+
+      if (cpu && cooler) {
+        results.push(checkCoolerSocket(cooler, cpu));
+        results.push(checkCoolerTdp(cooler, cpu));
+      }
+
+      if (psu && (cpu || gpu)) {
+        results.push(checkPsuWattage(psu, cpu, gpu));
+        if (gpu) results.push(checkGpuPowerConnectors(gpu, psu));
+      }
+    }
   }
 
   const compatibleCount = results.filter((r) => r.status === "compatible").length;

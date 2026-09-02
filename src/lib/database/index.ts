@@ -31,11 +31,20 @@ import { coolerExtended } from "./coolers/extended";
 import { coolerBatch3 } from "./coolers/batch3";
 import { cpuBatch2 } from "./cpus/batch2";
 import { zen5CPUs } from "./cpus/zen5";
+import { cpuBatch4 } from "./cpus/batch4";
 import { gpuBatch2 } from "./gpus/batch2";
 import { blackwellGPUs } from "./gpus/blackwell";
+import { gpuBatch4 } from "./gpus/batch4";
 import { motherboardBatch2 } from "./motherboards/batch2";
 import { caseFans, wifiModules, operatingSystems } from "./misc";
 import { fansBatch3, wifiBatch3 } from "./misc/batch3";
+import {
+  motherboardBatch4,
+  ramBatch4,
+  psuBatch4,
+  storageBatch4,
+  caseBatch4,
+} from "./parts-batch4";
 
 export const componentDatabase: PCComponent[] = [
   ...amdRyzenCPUs,
@@ -44,32 +53,39 @@ export const componentDatabase: PCComponent[] = [
   ...intelExtended,
   ...cpuBatch2,
   ...zen5CPUs,
+  ...cpuBatch4,
   ...nvidiaGPUs,
   ...amdGPUs,
   ...nvidiaExtended,
   ...amdGpuExtended,
   ...gpuBatch2,
   ...blackwellGPUs,
+  ...gpuBatch4,
   ...am4Motherboards,
   ...am5Motherboards,
   ...intelMotherboards,
   ...motherboardExtended,
   ...motherboardBatch2,
+  ...motherboardBatch4,
   ...ddr4Ram,
   ...ddr5Ram,
   ...ramExtended,
   ...ramBatch3,
+  ...ramBatch4,
   ...nvmeSSDs,
   ...sataSSDs,
   ...hdds,
   ...storageExtended,
   ...storageBatch3,
+  ...storageBatch4,
   ...psus,
   ...psuExtended,
   ...psuBatch3,
+  ...psuBatch4,
   ...pcCases,
   ...caseExtended,
   ...caseBatch3,
+  ...caseBatch4,
   ...cpuCoolers,
   ...coolerExtended,
   ...coolerBatch3,
