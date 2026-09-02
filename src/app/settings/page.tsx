@@ -10,7 +10,7 @@ import { getDatabaseStats } from "@/lib/database";
 import { COMPETITOR_MATRIX } from "@/lib/database/intel/part-intel";
 import { PageHeader } from "@/components/layout/page-header";
 import type { EbayStatus } from "@/lib/ebay/types";
-import { CheckCircle2, CircleDashed } from "lucide-react";
+import { AlertCircle, CheckCircle2, CircleDashed } from "lucide-react";
 
 export default function SettingsPage() {
   const dbStats = getDatabaseStats();
@@ -31,6 +31,7 @@ export default function SettingsPage() {
         setEbayStatus({
           configured: false,
           environment: "sandbox",
+          state: "not_configured",
           message: "Could not check eBay status.",
         })
       );
@@ -183,34 +184,45 @@ export default function SettingsPage() {
         </CardHeader>
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {ebayStatus?.configured ? (
-              <Badge variant="secondary" className="gap-1">
-                <CheckCircle2 className="h-3 w-3 text-[var(--color-success)]" />
+            {ebayStatus?.state === "connected" ? (
+              <Badge variant="success" className="gap-1">
+                <CheckCircle2 className="h-3 w-3" />
                 Connected
               </Badge>
+            ) : ebayStatus?.state === "auth_failed" ? (
+              <Badge variant="destructive" className="gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Keys invalid
+              </Badge>
             ) : (
-              <Badge variant="warning" className="gap-1">
+              <Badge variant="secondary" className="gap-1">
                 <CircleDashed className="h-3 w-3" />
-                Not configured
+                Optional
               </Badge>
             )}
-            {ebayStatus?.configured && (
+            {ebayStatus?.state === "connected" && (
               <Badge variant="secondary">
                 {ebayStatus.environment === "sandbox" ? "Sandbox" : "Production"}
               </Badge>
             )}
           </div>
           <p className="text-sm text-[var(--color-muted-foreground)]">
-            {ebayStatus?.message ??
-              "Checking eBay connection…"}
+            {ebayStatus?.message ?? "Checking eBay connection…"}
           </p>
-          {!ebayStatus?.configured && (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-              <strong>On pc-*.vercel.app?</strong> Keys in a local{" "}
-              <code>.env.local</code> file do <em>not</em> apply to your live site.
-              Add the 3 variables in{" "}
+          {ebayStatus?.state === "not_configured" && (
+            <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]/30 px-3 py-2 text-xs text-[var(--color-muted-foreground)]">
+              <strong>Want live eBay comps?</strong> On pc-*.vercel.app, keys in a
+              local <code>.env.local</code> file do <em>not</em> apply to your live
+              site. Add the 3 variables in{" "}
               <strong>Vercel → Project → Settings → Environment Variables</strong>,
               then click <strong>Redeploy</strong>.
+            </p>
+          )}
+          {ebayStatus?.state === "auth_failed" && (
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              Keys are set but eBay rejected them. App ID goes in{" "}
+              <code>EBAY_CLIENT_ID</code>, Cert ID in{" "}
+              <code>EBAY_CLIENT_SECRET</code> — then redeploy.
             </p>
           )}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/30 p-4 text-xs text-[var(--color-muted-foreground)]">
@@ -241,7 +253,15 @@ export default function SettingsPage() {
         </CardHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
-            { name: "eBay Browse API (used comps)", status: ebayStatus?.configured ? "Active" : "Needs keys" },
+            {
+              name: "eBay Browse API (used comps)",
+              status:
+                ebayStatus?.state === "connected"
+                  ? "Active"
+                  : ebayStatus?.state === "auth_failed"
+                    ? "Fix keys"
+                    : "Optional",
+            },
             { name: "Facebook Marketplace parser", status: "Planned" },
             { name: "PCPartPicker price sync", status: "Planned" },
             { name: "GPU/CPU benchmark API", status: "Planned" },
@@ -257,7 +277,9 @@ export default function SettingsPage() {
                 className={`text-xs ${
                   api.status === "Active"
                     ? "text-[var(--color-success)]"
-                    : "text-[var(--color-muted-foreground)]"
+                    : api.status === "Fix keys"
+                      ? "text-[var(--color-destructive)]"
+                      : "text-[var(--color-muted-foreground)]"
                 }`}
               >
                 {api.status}

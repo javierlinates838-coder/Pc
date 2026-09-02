@@ -13,7 +13,9 @@ export async function GET() {
     const status: EbayStatus = {
       configured: false,
       environment,
-      message: "Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET to your environment.",
+      state: "not_configured",
+      message:
+        "Optional — deal math uses our parts database. Add eBay keys for live market comps.",
     };
     return NextResponse.json(status);
   }
@@ -23,6 +25,7 @@ export async function GET() {
     const status: EbayStatus = {
       configured: true,
       environment,
+      state: "connected",
       message:
         environment === "sandbox"
           ? "Connected to eBay Sandbox — test listings only."
@@ -30,12 +33,15 @@ export async function GET() {
     };
     return NextResponse.json(status);
   } catch (error) {
-    const message =
+    const raw =
       error instanceof Error ? error.message : "eBay authentication failed";
     const status: EbayStatus = {
       configured: false,
       environment,
-      message: `Keys found but auth failed: ${message}`,
+      state: "auth_failed",
+      message: raw.includes("invalid_client")
+        ? "Keys found but login failed — double-check App ID (EBAY_CLIENT_ID) and Cert ID (EBAY_CLIENT_SECRET) are not swapped."
+        : `Keys found but login failed: ${raw}`,
     };
     return NextResponse.json(status);
   }

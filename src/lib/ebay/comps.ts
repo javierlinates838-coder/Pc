@@ -52,49 +52,40 @@ export async function fetchEbayComps(
   const trimmed = query.trim();
 
   if (!configured) {
-    return {
-      query: trimmed,
-      source: "ebay",
+    return emptyCompsResult(
+      trimmed,
       environment,
-      configured: false,
-      listingCount: 0,
-      prices: [],
-      low: 0,
-      median: 0,
-      high: 0,
-      average: 0,
-      listings: [],
-      fetchedAt: new Date().toISOString(),
-      note: "Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET to enable live comps.",
-    };
+      "Optional — deal math uses our parts database. Add eBay keys in Settings for live market comps."
+    );
   }
 
   if (trimmed.length < 3) {
-    return {
-      query: trimmed,
-      source: "ebay",
-      environment,
-      configured: true,
-      listingCount: 0,
-      prices: [],
-      low: 0,
-      median: 0,
-      high: 0,
-      average: 0,
-      listings: [],
-      fetchedAt: new Date().toISOString(),
-      note: "Search query too short.",
-    };
+    return emptyCompsResult(trimmed, environment, "Search query too short.", true);
   }
 
-  const listings = await searchEbayListings({
-    query: trimmed,
-    limit: options?.limit ?? 24,
-    usedOnly: true,
-    minPrice: options?.minPrice,
-    maxPrice: options?.maxPrice,
-    mode: options?.mode,
-  });
+  let listings;
+  try {
+    listings = await searchEbayListings({
+      query: trimmed,
+      limit: options?.limit ?? 24,
+      usedOnly: true,
+      minPrice: options?.minPrice,
+      maxPrice: options?.maxPrice,
+      mode: options?.mode,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "eBay comps request failed";
+    const authFailed =
+      /oauth|invalid_client|not configured|credentials/i.test(message);
+    return emptyCompsResult(
+      trimmed,
+      environment,
+      authFailed
+        ? "eBay keys found but login failed — check App ID and Cert ID in Vercel env vars (they may be swapped)."
+        : `Could not load eBay listings: ${message}`
+    );
+  }
 
   const prices = listings.map((l) => l.price).sort((a, b) => a - b);
   const average =
@@ -119,5 +110,28 @@ export async function fetchEbayComps(
       environment === "sandbox"
         ? "Sandbox data — switch EBAY_ENVIRONMENT=production for real listings."
         : "Active eBay listings (used condition). Sold prices may differ.",
+  };
+}
+
+function emptyCompsResult(
+  query: string,
+  environment: ReturnType<typeof getEbayEnvironment>,
+  note: string,
+  configured = false
+): EbayCompsResult {
+  return {
+    query,
+    source: "ebay",
+    environment,
+    configured,
+    listingCount: 0,
+    prices: [],
+    low: 0,
+    median: 0,
+    high: 0,
+    average: 0,
+    listings: [],
+    fetchedAt: new Date().toISOString(),
+    note,
   };
 }
