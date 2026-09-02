@@ -194,7 +194,7 @@ export default function SettingsPage() {
                 Not configured
               </Badge>
             )}
-            {ebayStatus && (
+            {ebayStatus?.configured && (
               <Badge variant="secondary">
                 {ebayStatus.environment === "sandbox" ? "Sandbox" : "Production"}
               </Badge>
@@ -204,6 +204,15 @@ export default function SettingsPage() {
             {ebayStatus?.message ??
               "Checking eBay connection…"}
           </p>
+          {!ebayStatus?.configured && (
+            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              <strong>On pc-*.vercel.app?</strong> Keys in a local{" "}
+              <code>.env.local</code> file do <em>not</em> apply to your live site.
+              Add the 3 variables in{" "}
+              <strong>Vercel → Project → Settings → Environment Variables</strong>,
+              then click <strong>Redeploy</strong>.
+            </p>
+          )}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/30 p-4 text-xs text-[var(--color-muted-foreground)]">
             <p className="font-semibold text-[var(--color-foreground)]">
               Setup (server env vars)
