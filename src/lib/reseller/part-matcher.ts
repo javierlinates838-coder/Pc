@@ -21,10 +21,57 @@ export function extractModelTokens(text: string): string[] {
     }
   }
 
-  const bareFour = text.match(/\b(30[5-9]\d|40[5-9]\d|50\d{2})\b/g);
+  const bareFour = text.match(/\b(30[5-9]\d|40[5-9]\d|50[7-9]\d)\b/g);
   bareFour?.forEach((n) => tokens.add(n));
 
   return [...tokens];
+}
+
+/** Guess part category from listing shorthand so "650w psu" never matches a GPU. */
+export function inferCategoryFromQuery(query: string): PartCategory | undefined {
+  const q = query.toLowerCase();
+
+  if (/\b(psu|power supply)\b/.test(q) || /\b\d{3,4}\s*w(?:att)?\b/.test(q)) {
+    return "psu";
+  }
+  if (
+    /\b(motherboard|mobo)\b/.test(q) ||
+    /\b[abhxz]\d{3}[me]?\b/.test(q)
+  ) {
+    return "motherboard";
+  }
+  if (
+    /\b(ram|ddr[45]|dimm)\b/.test(q) ||
+    /\b\d+\s*gb\s*(?:ddr|ram)\b/.test(q) ||
+    /\b\d+\s*x\s*\d+\s*gb\b/.test(q)
+  ) {
+    return "ram";
+  }
+  if (
+    /\b(nvme|ssd|hdd|m\.2|storage)\b/.test(q) ||
+    /\b\d+(?:\.\d+)?\s*tb\b/.test(q) ||
+    /\b\d+\s*gb\s*nvme\b/.test(q)
+  ) {
+    return "storage";
+  }
+  if (/\b(cooler|aio|liquid|heatsink)\b/.test(q)) return "cooler";
+  if (/\b(case|chassis|tower|itx build)\b/.test(q)) return "case";
+  if (/\b(fan|fans)\b/.test(q)) return "fans";
+  if (/\b(wifi|wi-fi|wireless)\b/.test(q)) return "wifi";
+  if (/\b(windows|win11|win10|os)\b/.test(q)) return "os";
+  if (/\b(rtx|gtx|rx|geforce|radeon|gpu|graphics card)\b/.test(q)) {
+    return "gpu";
+  }
+  if (
+    /\b(ryzen|threadripper|intel core|core i[3579]|xeon|cpu|processor)\b/.test(
+      q
+    ) ||
+    /\bi[3579][- ]?\d{4,5}/.test(q)
+  ) {
+    return "cpu";
+  }
+
+  return undefined;
 }
 
 function componentContainsModel(
@@ -47,17 +94,31 @@ function componentContainsModel(
   });
 }
 
+function defaultMinScore(
+  query: string,
+  category: PartCategory | undefined,
+  hasStrictModel: boolean
+): number {
+  if (hasStrictModel) return 25;
+  if (category === "ram" || category === "storage" || category === "psu") {
+    return 8;
+  }
+  return 12;
+}
+
 export function matchComponentFromQuery(
   query: string,
   options?: { minScore?: number; category?: PartCategory }
 ): PCComponent | null {
+  const category = options?.category ?? inferCategoryFromQuery(query);
   const modelTokens = extractModelTokens(query);
   const hasStrictModel = modelTokens.some((t) => /\d{4}/.test(t));
-  const minScore = options?.minScore ?? (hasStrictModel ? 25 : 12);
+  const minScore =
+    options?.minScore ?? defaultMinScore(query, category, hasStrictModel);
 
   const fuzzy = fuzzyMatchComponentScored(query, minScore);
   const filtered = fuzzy.filter(({ component }) => {
-    if (options?.category && component.category !== options.category) {
+    if (category && component.category !== category) {
       return false;
     }
     return componentContainsModel(component, modelTokens);
@@ -66,9 +127,9 @@ export function matchComponentFromQuery(
   if (filtered.length > 0) return filtered[0].component;
 
   if (query.length >= 4) {
-    const search = searchComponents(query);
+    const search = searchComponents(query, category);
     for (const c of search) {
-      if (options?.category && c.category !== options.category) continue;
+      if (category && c.category !== category) continue;
       if (componentContainsModel(c, modelTokens)) return c;
     }
   }

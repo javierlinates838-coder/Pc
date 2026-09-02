@@ -22,6 +22,9 @@ export function ActiveRigBar() {
 
   if (pathname === "/" && !hasPc) return null;
 
+  // Deal page has its own scanner UI — avoid conflicting "no PC loaded" banner
+  if (pathname === "/deal") return null;
+
   // Build page: header + visualizer already show rig context — keep bar minimal
   if (pathname === "/build") {
     if (!hasPc) {

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { getWorkflowStep } from "./nav-config";
 
 /** Hide on pages that already show step context in the page body */
-const HIDE_ON = ["/build", "/profit"];
+const HIDE_ON = ["/build", "/profit", "/deal"];
 
 export function PageStepBanner() {
   const pathname = usePathname();

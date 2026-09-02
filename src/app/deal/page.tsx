@@ -17,6 +17,7 @@ import { generateListingCopy } from "@/lib/reseller/listing-generator";
 import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
 import { useBuildStore } from "@/lib/inventory/store";
 import { formatCurrency } from "@/lib/utils";
+import { getPartCount } from "@/lib/build/helpers";
 import { listingHintToCondition } from "@/lib/flip/conditions";
 import { FLIP_OTHER_EXPENSES, FLIP_PLATFORM_SHIPPING } from "@/lib/flip/defaults";
 import { PageHeader } from "@/components/layout/page-header";
@@ -138,9 +139,14 @@ export default function DealAnalyzerPage() {
   );
 
   const isParsing = listing !== debouncedListing;
+  const partCount = getPartCount(parts);
+  const hasCoreComponent = Boolean(parts.cpu || parts.gpu);
   const hasParts = deal != null && deal.parsedParts.length > 0;
   const hasPrice = deal != null && deal.listingPrice > 0;
-  const hasFullAnalysis = hasParts && hasPrice && recommendation != null;
+  const hasMeaningfulAnalysis =
+    hasParts && hasPrice && hasCoreComponent && partCount >= 2;
+  const hasFullAnalysis =
+    hasMeaningfulAnalysis && recommendation != null;
   const bestPlatform = platformResults[0];
 
   const ebaySearch = useMemo(
@@ -200,6 +206,20 @@ export default function DealAnalyzerPage() {
           bestPlatform={bestPlatform?.shortName}
           reason={recommendation.reasons[0]}
         />
+      )}
+
+      {hasParts && hasPrice && !hasMeaningfulAnalysis && deal && (
+        <Card className="border-dashed border-amber-500/40 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle className="text-base">Incomplete listing detected</CardTitle>
+            <CardDescription>
+              We found {deal.parsedParts.length} part
+              {deal.parsedParts.length === 1 ? "" : "s"} ({deal.parsedParts.join(", ")}
+              ) but need a CPU or GPU plus more specs for a reliable flip verdict.
+              Paste the full ad with processor, graphics card, RAM, and storage.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
@@ -263,14 +283,22 @@ export default function DealAnalyzerPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {hasFullAnalysis ? "Quick verdict" : "Parts detected"}
+                  {hasFullAnalysis
+                    ? "Quick verdict"
+                    : hasMeaningfulAnalysis
+                      ? "Quick verdict"
+                      : "Parts detected"}
                 </CardTitle>
                 <CardDescription>
                   {hasFullAnalysis && bestPlatform
                     ? `${bestPlatform.shortName} nets ${formatCurrency(bestPlatform.netProfit)} after real fees`
-                    : hasPrice
+                    : hasMeaningfulAnalysis && hasPrice
                       ? "Profit uses platform-specific fees, not a flat 10%"
-                      : "Add asking price (e.g. $450) to see profit and offer"}
+                      : hasPrice && !hasCoreComponent
+                        ? "Add a CPU or GPU to the listing for accurate resale math"
+                        : hasPrice
+                          ? "Add more specs (CPU, GPU, RAM) for a reliable verdict"
+                          : "Add asking price (e.g. $450) to see profit and offer"}
                 </CardDescription>
               </CardHeader>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -284,20 +312,26 @@ export default function DealAnalyzerPage() {
                 </div>
                 <div className="rounded-xl bg-[var(--color-secondary)]/50 p-3">
                   <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    {hasPrice ? "Margin" : "Asking price"}
+                    {hasPrice && hasMeaningfulAnalysis
+                      ? "Margin"
+                      : hasPrice
+                        ? "Asking price"
+                        : "Asking price"}
                   </p>
                   <p
                     className={`mt-1 font-bold tabular-nums ${
-                      hasPrice
+                      hasPrice && hasMeaningfulAnalysis
                         ? deal.estimatedProfitPotential >= 0
                           ? "text-[var(--color-success)]"
                           : "text-[var(--color-destructive)]"
                         : "text-[var(--color-muted-foreground)]"
                     }`}
                   >
-                    {hasPrice
+                    {hasPrice && hasMeaningfulAnalysis
                       ? `${deal.estimatedProfitPotential >= 0 ? "+" : ""}${formatCurrency(deal.estimatedProfitPotential)}`
-                      : "—"}
+                      : hasPrice
+                        ? formatCurrency(deal.listingPrice)
+                        : "—"}
                   </p>
                 </div>
               </div>

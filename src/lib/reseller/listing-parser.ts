@@ -87,6 +87,18 @@ const BOARD_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\b(a320|b350|x370|b450|b550|x570)\b/i, query: "$1" },
 ];
 
+const RAM_PATTERNS: { pattern: RegExp; query: string }[] = [
+  { pattern: /\b(\d+)\s*gb\s*(?:\(\s*\d+x\d+gb\s*\)\s*)?(?:ddr[45][- ]?\d+)?\s*ram\b/i, query: "$1gb ddr4 ram" },
+  { pattern: /\b(\d+)\s*x\s*(\d+)\s*gb\s*(?:ddr[45])?\s*ram\b/i, query: "$1x$2gb ddr4 ram" },
+  { pattern: /\bddr[45][- ]?\d+\s*(\d+)\s*gb\b/i, query: "$1gb ddr5 ram" },
+];
+
+const STORAGE_PATTERNS: { pattern: RegExp; query: string }[] = [
+  { pattern: /\b(\d+(?:\.\d+)?)\s*tb\s*(?:nvme|ssd|m\.2)?/i, query: "$1tb nvme ssd" },
+  { pattern: /\b(\d+)\s*gb\s*nvme\b/i, query: "$1gb nvme ssd" },
+  { pattern: /\b(\d+)\s*gb\s*ssd\b/i, query: "$1gb sata ssd" },
+];
+
 const PSU_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\b(\d{3,4})\s*w(?:att)?\s*(?:gold|platinum|bronze|silver)?\s*(?:psu|power supply)?/i, query: "$1w psu" },
   { pattern: /\b(psu|power supply)\s*(\d{3,4})\s*w/i, query: "$2w psu" },
@@ -95,18 +107,35 @@ const PSU_PATTERNS: { pattern: RegExp; query: string }[] = [
 const LINE_MATCH_MIN_SCORE = 12;
 const BLOB_MATCH_MIN_SCORE = 35;
 
+/** Remove wattages, capacities, and chipsets so they are not mistaken for prices. */
+function stripSpecNumbers(text: string): string {
+  return text
+    .replace(/\b\d{3,4}\s*w(?:att)?(?:\s*(?:gold|bronze|platinum|silver))?/gi, " ")
+    .replace(/\b[abhxz]\d{3}[me]?\b/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:gb|tb)\b/gi, " ")
+    .replace(
+      /\b(?:rtx|gtx|rx)\s*\d{3,4}(?:\s*(?:ti|super|xt|xtx))?\b/gi,
+      " "
+    )
+    .replace(/\bryzen\s*\d+\s*\d{4}[a-z]?\b/gi, " ")
+    .replace(/\bi[3579][- ]?\d{4,5}[a-z]?\b/gi, " ");
+}
+
 export function extractListingPrice(text: string): number {
   const normalized = text.replace(/,/g, "");
+  const forPrice = stripSpecNumbers(normalized);
 
-  const asking = normalized.match(
+  const asking = forPrice.match(
     /(?:asking|price|listed at|sell(?:ing)? for)\s*[:.]?\s*\$?\s*(\d+(?:\.\d{2})?)/i
   );
   if (asking) return parseFloat(asking[1]);
 
-  const obo = normalized.match(/\$?\s*(\d+(?:\.\d{2})?)\s*(?:obo|o\.b\.o\.?|or best offer)/i);
+  const obo = forPrice.match(
+    /\$?\s*(\d+(?:\.\d{2})?)\s*(?:obo|o\.b\.o\.?|or best offer)/i
+  );
   if (obo) return parseFloat(obo[1]);
 
-  const dollars = normalized.match(/\$?\s*(\d+(?:\.\d{2})?)\s*dollars?/i);
+  const dollars = forPrice.match(/\$?\s*(\d+(?:\.\d{2})?)\s*dollars?/i);
   if (dollars) return parseFloat(dollars[1]);
 
   const prices = normalized.match(/\$[\d]+(?:\.\d{2})?/g);
@@ -115,7 +144,9 @@ export function extractListingPrice(text: string): number {
   }
 
   // Trailing bare number often means price: "RTX 3060 12GB - 450"
-  const trailing = normalized.match(/(?:[-–—]\s*|\s)(\d{2,4})(?:\s*(?:obo|firm))?$/i);
+  const trailing = forPrice.match(
+    /(?:[-–—]\s*|\s)(\d{2,4})(?:\s*(?:obo|firm))?$/i
+  );
   if (trailing) {
     const n = parseFloat(trailing[1]);
     if (n >= 25 && n <= 15000) return n;
@@ -161,6 +192,18 @@ function expandLine(line: string): string[] {
       queries.push(`motherboard ${query.replace("$1", m[1])}`);
       queries.push(query.replace("$1", m[1]));
     }
+  }
+  for (const { pattern, query } of RAM_PATTERNS) {
+    const m = line.match(pattern);
+    if (m) {
+      queries.push(
+        query.replace("$1", m[1]).replace("$2", m[2] ?? "")
+      );
+    }
+  }
+  for (const { pattern, query } of STORAGE_PATTERNS) {
+    const m = line.match(pattern);
+    if (m) queries.push(query.replace("$1", m[1]));
   }
   for (const { pattern, query } of PSU_PATTERNS) {
     const m = line.match(pattern);
@@ -244,7 +287,7 @@ function tryMatchQuery(
 
 function splitListingLines(text: string, normalized: string): string[] {
   const raw = text
-    .split(/\n|•|;|\||\//)
+    .split(/\n|•|;|\||\/|,/)
     .flatMap((segment) =>
       segment.split(/\s*\+\s*|\s+&\s+|\s+and\s+/i)
     )
