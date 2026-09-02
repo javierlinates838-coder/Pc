@@ -30,4 +30,6 @@ export interface EbayStatus {
   configured: boolean;
   environment: EbayEnvironment;
   message: string;
+  /** not_configured = optional, no keys. auth_failed = keys present but invalid. */
+  state: "not_configured" | "auth_failed" | "connected";
 }

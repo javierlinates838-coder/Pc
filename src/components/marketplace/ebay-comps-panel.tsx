@@ -64,9 +64,9 @@ export function EbayCompsPanel({
         </p>
       )}
 
-      {data && !data.configured && (
-        <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          {data.note} Add keys in Settings → Live APIs.
+      {data && !data.configured && data.note && (
+        <p className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]/30 px-3 py-2 text-xs text-[var(--color-muted-foreground)]">
+          {data.note}
         </p>
       )}
 
