@@ -25,5 +25,6 @@ export function getEbayApiBase(): string {
 
 export const EBAY_MARKETPLACE_ID = "EBAY_US";
 
-/** PC / gaming hardware categories on eBay US */
-export const EBAY_PC_CATEGORY_IDS = "171957,175673";
+/** eBay Browse API allows max 1 category per request */
+export const EBAY_CATEGORY_DESKTOPS = "171957";
+export const EBAY_CATEGORY_PC_PARTS = "175673";
