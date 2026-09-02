@@ -6,7 +6,6 @@ import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   analyzeDeal,
   generateResellerRecommendation,
@@ -18,17 +17,20 @@ import {
   getEmptyDealReadiness,
   incompleteListingMessage,
 } from "@/lib/reseller/deal-readiness";
+import { getPlainEnglishDeal } from "@/lib/reseller/deal-plain-english";
 import { generateListingCopy } from "@/lib/reseller/listing-generator";
 import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
 import { useBuildStore } from "@/lib/inventory/store";
 import { formatCurrency } from "@/lib/utils";
+import { componentMapToEntries } from "@/lib/build/helpers";
 import { listingHintToCondition } from "@/lib/flip/conditions";
 import { FLIP_OTHER_EXPENSES, FLIP_PLATFORM_SHIPPING } from "@/lib/flip/defaults";
 import { PageHeader } from "@/components/layout/page-header";
 import { DealIntelPanel } from "@/components/deal/deal-intel-panel";
 import { ListingGeneratorPanel } from "@/components/deal/listing-generator-panel";
 import { PlatformProfitTable } from "@/components/marketplace/platform-profit-table";
-import { FlipVerdictHero } from "@/components/shared/flip-verdict-hero";
+import { DealPartsChecklist } from "@/components/deal/deal-parts-checklist";
+import { DealVerdictPanel } from "@/components/deal/deal-verdict-panel";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { buildEbaySearchQuery } from "@/lib/ebay/comps";
 import { useEbayComps } from "@/hooks/use-ebay-comps";
@@ -104,6 +106,7 @@ export default function DealAnalyzerPage() {
   );
 
   const parts = scrape?.parts ?? {};
+  const buildEntries = useMemo(() => componentMapToEntries(parts), [parts]);
 
   const deal = useMemo(
     () => (scrape ? analyzeDeal(debouncedListing, scrape) : null),
@@ -151,6 +154,29 @@ export default function DealAnalyzerPage() {
         : null,
     [deal, parts, readiness.isComplete]
   );
+
+  const plainEnglish = useMemo(() => {
+    if (!deal) {
+      return getPlainEnglishDeal({
+        rating: "FAIR",
+        profitAfterFees: 0,
+        askingPrice: 0,
+        resalePrice: 0,
+        isComplete: false,
+        foundCount: 0,
+        missingCount: readiness.missingParts.length,
+      });
+    }
+    return getPlainEnglishDeal({
+      rating: deal.rating,
+      profitAfterFees: deal.estimatedProfitPotential,
+      askingPrice: deal.listingPrice,
+      resalePrice: deal.estimatedResaleValue,
+      isComplete: readiness.isComplete,
+      foundCount: deal.parsedParts.length,
+      missingCount: readiness.missingParts.length,
+    });
+  }, [deal, readiness]);
 
   const isParsing = listing !== debouncedListing;
   const bestPlatform = platformResults[0];
@@ -203,215 +229,145 @@ export default function DealAnalyzerPage() {
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Deal Scanner"
-        description="Paste any listing — parts, price, and profit update live as you type."
+        description="Paste a Facebook or eBay ad — we'll read the parts, do the math, and tell you in plain English if it's worth buying."
       />
 
       {!hasListingInput && !isParsing && (
         <Card className="border-dashed border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">
           <CardHeader>
-            <CardTitle className="text-base">Paste a listing to start</CardTitle>
-            <CardDescription>
-              Copy the full ad from Facebook, eBay, or Craigslist — include CPU,
-              GPU, RAM, storage, and the asking price. Or tap &quot;Try sample
-              listing&quot; below.
+            <CardTitle className="text-base">How this works</CardTitle>
+            <CardDescription className="space-y-2 text-sm leading-relaxed">
+              <span className="block">
+                <strong>1.</strong> Paste the seller&apos;s full listing below
+              </span>
+              <span className="block">
+                <strong>2.</strong> We match the CPU, GPU, RAM, and other parts
+              </span>
+              <span className="block">
+                <strong>3.</strong> We compare the asking price to resale value
+                and tell you if you&apos;d profit or lose money
+              </span>
             </CardDescription>
           </CardHeader>
         </Card>
       )}
 
-      {readiness.isComplete && deal && recommendation && (
-        <FlipVerdictHero
-          rating={deal.rating}
-          verdict={recommendation.verdict}
+      <Card className="neon-border">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-[var(--color-primary)]" />
+            <CardTitle>Paste the listing here</CardTitle>
+          </div>
+          <CardDescription>
+            Copy everything from the ad — specs, price, &quot;$650 OBO&quot;, all
+            of it. The more detail, the more accurate we are.
+          </CardDescription>
+        </CardHeader>
+        <Textarea
+          value={listing}
+          onChange={(e) => setListing(e.target.value)}
+          rows={10}
+          placeholder={`Example:\nRyzen 5 5600, RTX 3060 12GB\n16GB RAM, 1TB SSD\n$450 OBO`}
+          className="font-mono text-xs sm:text-sm"
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setListing(EXAMPLE_LISTING)}
+          >
+            Try sample listing
+          </Button>
+          {listing.trim().length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setListing("")}
+            >
+              Clear
+            </Button>
+          )}
+          {isParsing && (
+            <span className="text-xs text-[var(--color-muted-foreground)]">
+              Reading listing…
+            </span>
+          )}
+          {!isParsing && readiness.hasParts && deal && (
+            <span className="text-xs text-[var(--color-success)]">
+              {deal.parsedParts.length} part
+              {deal.parsedParts.length === 1 ? "" : "s"} found
+              {!readiness.hasPrice && " · add the asking price"}
+              {readiness.hasPrice &&
+                !readiness.isComplete &&
+                " · need more specs for full verdict"}
+            </span>
+          )}
+        </div>
+        {readiness.hasParts && (
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <Button onClick={handleLoadBuild} className="w-full sm:w-auto">
+              Open in 3D builder
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleOpenProfit}
+              className="w-full sm:w-auto"
+              disabled={!readiness.isComplete}
+            >
+              Profit calculator
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {hasListingInput && !isParsing && !readiness.hasParts && (
+        <Card className="border-dashed border-amber-500/30">
+          <CardHeader>
+            <CardTitle className="text-base">Couldn&apos;t read any parts</CardTitle>
+            <CardDescription>
+              Try including model names like &quot;RTX 3060&quot; or &quot;Ryzen 5
+              5600&quot;, plus the asking price.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {readiness.hasParts && deal && (
+        <DealPartsChecklist
+          found={readiness.foundParts}
+          missing={readiness.missingParts}
+          partBreakdown={buildEntries}
+          parsedNames={deal.parsedParts}
+        />
+      )}
+
+      {deal && readiness.hasParts && (
+        <DealVerdictPanel
+          plain={plainEnglish}
           askingPrice={deal.listingPrice}
           resalePrice={deal.estimatedResaleValue}
           profitAfterFees={deal.estimatedProfitPotential}
           offerPrice={deal.suggestedOfferPrice}
           bestPlatform={bestPlatform?.shortName}
-          reason={recommendation.reasons[0]}
+          showMath={readiness.isComplete && readiness.hasPrice}
         />
       )}
 
       {readiness.hasParts && readiness.hasPrice && !readiness.isComplete && deal && (
         <Card className="border-dashed border-amber-500/40 bg-amber-500/5">
           <CardHeader>
-            <CardTitle className="text-base">Incomplete listing detected</CardTitle>
+            <CardTitle className="text-base">Why no full verdict yet?</CardTitle>
             <CardDescription>
-              {incompleteListingMessage(deal.parsedParts)}
+              {incompleteListingMessage(
+                deal.parsedParts,
+                readiness.missingParts
+              )}
             </CardDescription>
           </CardHeader>
         </Card>
       )}
-
-      {readiness.hasParts && !readiness.hasPrice && deal && (
-        <Card className="border-dashed border-sky-500/30 bg-sky-500/5">
-          <CardHeader>
-            <CardTitle className="text-base">Parts found — add a price</CardTitle>
-            <CardDescription>
-              Matched {deal.parsedParts.length} part
-              {deal.parsedParts.length === 1 ? "" : "s"}. Include the asking
-              price in the listing (e.g. $450 or $450 OBO) to see profit and
-              offer math.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
-        <Card className="neon-border">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[var(--color-primary)]" />
-              <CardTitle>Paste listing</CardTitle>
-            </div>
-            <CardDescription>
-              Facebook, eBay, Craigslist — we read $ amounts and match parts
-              automatically.
-            </CardDescription>
-          </CardHeader>
-          <Textarea
-            value={listing}
-            onChange={(e) => setListing(e.target.value)}
-            rows={12}
-            placeholder="Paste Facebook, eBay, Craigslist listing..."
-            className="font-mono text-xs sm:text-sm"
-          />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setListing(EXAMPLE_LISTING)}
-            >
-              Try sample listing
-            </Button>
-            {listing.trim().length > 0 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setListing("")}
-              >
-                Clear
-              </Button>
-            )}
-            {isParsing && (
-              <span className="text-xs text-[var(--color-muted-foreground)]">
-                Analyzing…
-              </span>
-            )}
-            {!isParsing && readiness.hasParts && deal && (
-              <span className="text-xs text-[var(--color-success)]">
-                {deal.parsedParts.length} parts matched
-                {!readiness.hasPrice && " · add a price ($450) for profit math"}
-                {readiness.hasPrice &&
-                  !readiness.isComplete &&
-                  " · add CPU/GPU for full verdict"}
-              </span>
-            )}
-          </div>
-          {readiness.hasParts && (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Button onClick={handleLoadBuild} className="w-full sm:w-auto">
-                Open in 3D builder
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleOpenProfit}
-                className="w-full sm:w-auto"
-                disabled={!readiness.isComplete}
-              >
-                Profit calculator
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        <div className="space-y-4">
-          {readiness.hasParts && deal ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {readiness.isComplete ? "Quick verdict" : "Parts detected"}
-                </CardTitle>
-                <CardDescription>
-                  {readiness.isComplete && bestPlatform
-                    ? `${bestPlatform.shortName} nets ${formatCurrency(bestPlatform.netProfit)} after real fees`
-                    : readiness.isComplete
-                      ? "Profit uses platform-specific fees, not a flat 10%"
-                      : readiness.hasPrice && !readiness.hasCoreComponent
-                        ? "Add a CPU or GPU to the listing for accurate resale math"
-                        : readiness.hasPrice
-                          ? "Add more specs (CPU, GPU, RAM) for a reliable verdict"
-                          : "Add asking price (e.g. $450) to see profit and offer"}
-                </CardDescription>
-              </CardHeader>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-[var(--color-secondary)]/50 p-3">
-                  <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    Parts value
-                  </p>
-                  <p className="mt-1 font-bold tabular-nums">
-                    {formatCurrency(deal.estimatedResaleValue)}
-                  </p>
-                  {!readiness.isComplete && (
-                    <p className="mt-1 text-[10px] text-amber-400/90">
-                      Estimate only — paste full listing
-                    </p>
-                  )}
-                </div>
-                <div className="rounded-xl bg-[var(--color-secondary)]/50 p-3">
-                  <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    {readiness.isComplete ? "Margin" : "Asking price"}
-                  </p>
-                  <p
-                    className={`mt-1 font-bold tabular-nums ${
-                      readiness.isComplete
-                        ? deal.estimatedProfitPotential >= 0
-                          ? "text-[var(--color-success)]"
-                          : "text-[var(--color-destructive)]"
-                        : "text-[var(--color-muted-foreground)]"
-                    }`}
-                  >
-                    {readiness.isComplete
-                      ? `${deal.estimatedProfitPotential >= 0 ? "+" : ""}${formatCurrency(deal.estimatedProfitPotential)}`
-                      : readiness.hasPrice
-                        ? formatCurrency(deal.listingPrice)
-                        : "—"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {deal.parsedParts.map((p) => (
-                  <Badge key={p} variant="secondary">
-                    {p}
-                  </Badge>
-                ))}
-              </div>
-            </Card>
-          ) : hasListingInput && !isParsing ? (
-            <Card className="border-dashed border-amber-500/30">
-              <CardHeader>
-                <CardTitle className="text-base">No parts matched</CardTitle>
-                <CardDescription>
-                  Try &quot;rtx 3060&quot;, &quot;ryzen 5 5600&quot;, or paste a
-                  fuller listing with specs and price.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            <Card className="border-dashed border-[var(--color-primary)]/25">
-              <CardHeader>
-                <CardTitle className="text-base">Waiting for listing</CardTitle>
-                <CardDescription>
-                  Paste an ad — even short text like &quot;3050 ti 8gb&quot; or
-                  &quot;RTX 3060 $400&quot; works.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          )}
-        </div>
-      </div>
 
       {readiness.hasParts && deal && (
         <div className="space-y-3">
@@ -426,40 +382,10 @@ export default function DealAnalyzerPage() {
             />
           )}
 
-          <CollapsibleBlock
-            title="Detected parts"
-            subtitle={
-              deal.parsedParts.length > 0
-                ? `${deal.parsedParts.length} parts matched`
-                : "No parts detected — check listing text"
-            }
-            defaultOpen={!readiness.isComplete}
-          >
-            {deal.parsedParts.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {deal.parsedParts.map((p) => (
-                  <Badge key={p} variant="secondary">
-                    {p}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                We couldn&apos;t match parts. Try spelling out CPU/GPU models or
-                use shorthand like &quot;rtx 3060&quot; and &quot;16gb ram&quot;.
-              </p>
-            )}
-            {scrape && scrape.unparsedLines.length > 0 && (
-              <p className="mt-3 text-xs text-amber-400/90">
-                Not matched: {scrape.unparsedLines.join(" · ")}
-              </p>
-            )}
-          </CollapsibleBlock>
-
           {readiness.isComplete && platformResults.length > 0 && (
             <CollapsibleBlock
-              title="Sell on which platform?"
-              subtitle={`${platformResults.length} channels compared`}
+              title="Where to sell it"
+              subtitle="Compare profit on Facebook, eBay, OfferUp, and more"
             >
               <PlatformProfitTable results={platformResults} />
             </CollapsibleBlock>
@@ -470,11 +396,11 @@ export default function DealAnalyzerPage() {
             (intel.redFlags.length > 0 ||
               intel.inspectionChecklist.length > 0) && (
               <CollapsibleBlock
-                title="Warnings & inspection"
+                title="Before you buy — check these"
                 subtitle={
                   intel.redFlags.length > 0
-                    ? `${intel.redFlags.length} thing(s) to verify`
-                    : "Checklist before you buy"
+                    ? `${intel.redFlags.length} thing(s) to verify in person`
+                    : "Inspection checklist"
                 }
               >
                 <DealIntelPanel intel={intel} compact />
@@ -483,11 +409,20 @@ export default function DealAnalyzerPage() {
 
           {generatedListing && readiness.isComplete && (
             <CollapsibleBlock
-              title="Listing copy"
-              subtitle="Title and description to paste when you resell"
+              title="Resale listing copy"
+              subtitle="Paste this when you re-list the PC"
             >
               <ListingGeneratorPanel listing={generatedListing} />
             </CollapsibleBlock>
+          )}
+
+          {readiness.hasParts && !readiness.isComplete && deal && (
+            <p className="text-center text-xs text-[var(--color-muted-foreground)]">
+              Parts value shown: {formatCurrency(deal.estimatedResaleValue)} —
+              this is only from the {deal.parsedParts.length} part
+              {deal.parsedParts.length === 1 ? "" : "s"} we found, not the full
+              PC.
+            </p>
           )}
         </div>
       )}

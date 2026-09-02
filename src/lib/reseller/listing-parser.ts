@@ -175,6 +175,19 @@ function expandLine(line: string): string[] {
     ) {
       continue;
     }
+    if (
+      key === "wifi" &&
+      /has wifi|with wifi|wifi included|wifi ready/i.test(lower) &&
+      !/\bwifi\s*6|\bax\d|module|adapter|pcie/i.test(lower)
+    ) {
+      continue;
+    }
+    if (
+      (key === "windows" || key === "win11" || key === "win10") &&
+      !/\bwindows\s*(?:11|10)|win\s*(?:11|10)\b/i.test(lower)
+    ) {
+      continue;
+    }
     if (lower.includes(key)) queries.push(expansion);
   }
 
@@ -264,6 +277,15 @@ function assignPart(parts: ComponentMap, match: { id: string; category: string; 
   if (match.category === "cooler" && !parts.cooler) parts.cooler = match as Cooler;
   if (match.category === "psu" && !parts.psu) parts.psu = match as PSU;
   if (match.category === "case" && !parts.case) parts.case = match as Case;
+  if (match.category === "os" && !parts.os) {
+    parts.os = match as import("@/lib/types/components").OperatingSystem;
+  }
+  if (match.category === "wifi" && !parts.wifi) {
+    parts.wifi = match as import("@/lib/types/components").WiFiModule;
+  }
+  if (match.category === "fans" && !parts.fans) {
+    parts.fans = match as import("@/lib/types/components").Fans;
+  }
 }
 
 function tryMatchQuery(

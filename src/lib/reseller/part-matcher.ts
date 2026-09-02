@@ -76,15 +76,29 @@ export function inferCategoryFromQuery(query: string): PartCategory | undefined 
 
 function componentContainsModel(
   component: PCComponent,
-  modelTokens: string[]
+  modelTokens: string[],
+  query: string
 ): boolean {
   if (modelTokens.length === 0) return true;
 
   const hay = `${component.name} ${component.model}`.toLowerCase();
+  const q = query.toLowerCase();
 
   return modelTokens.some((token) => {
     const digits = token.match(/\d{4}/)?.[0];
     if (digits && !hay.includes(digits)) return false;
+
+    // Don't match 5700X when listing only says 5700 (no x/x3d suffix)
+    if (
+      component.category === "cpu" &&
+      digits &&
+      hay.includes(`${digits}x`) &&
+      q.includes(digits) &&
+      !q.includes(`${digits}x`) &&
+      !q.includes("x3d")
+    ) {
+      return false;
+    }
 
     if (token.includes("x3d") && !hay.includes("x3d")) return false;
     if (token.includes(" ti") && !hay.includes("ti")) return false;
@@ -121,7 +135,7 @@ export function matchComponentFromQuery(
     if (category && component.category !== category) {
       return false;
     }
-    return componentContainsModel(component, modelTokens);
+    return componentContainsModel(component, modelTokens, query);
   });
 
   if (filtered.length > 0) return filtered[0].component;
@@ -130,7 +144,7 @@ export function matchComponentFromQuery(
     const search = searchComponents(query, category);
     for (const c of search) {
       if (category && c.category !== category) continue;
-      if (componentContainsModel(c, modelTokens)) return c;
+      if (componentContainsModel(c, modelTokens, query)) return c;
     }
   }
 
