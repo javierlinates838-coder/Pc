@@ -13,11 +13,15 @@ import {
   scrapeListingText,
 } from "@/lib/reseller/analyzer";
 import { buildDealIntelligence } from "@/lib/reseller/deal-intelligence";
+import {
+  getDealReadiness,
+  getEmptyDealReadiness,
+  incompleteListingMessage,
+} from "@/lib/reseller/deal-readiness";
 import { generateListingCopy } from "@/lib/reseller/listing-generator";
 import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
 import { useBuildStore } from "@/lib/inventory/store";
 import { formatCurrency } from "@/lib/utils";
-import { getPartCount } from "@/lib/build/helpers";
 import { listingHintToCondition } from "@/lib/flip/conditions";
 import { FLIP_OTHER_EXPENSES, FLIP_PLATFORM_SHIPPING } from "@/lib/flip/defaults";
 import { PageHeader } from "@/components/layout/page-header";
@@ -92,12 +96,11 @@ export default function DealAnalyzerPage() {
   const debouncedListing = useDebouncedValue(listing, 450);
   const { loadBuild } = useBuildStore();
 
+  const hasListingInput = debouncedListing.trim().length >= 3;
+
   const scrape = useMemo(
-    () =>
-      debouncedListing.trim().length >= 3
-        ? scrapeListingText(debouncedListing)
-        : null,
-    [debouncedListing]
+    () => (hasListingInput ? scrapeListingText(debouncedListing) : null),
+    [debouncedListing, hasListingInput]
   );
 
   const parts = scrape?.parts ?? {};
@@ -107,51 +110,57 @@ export default function DealAnalyzerPage() {
     [debouncedListing, scrape]
   );
 
+  const readiness = useMemo(() => {
+    if (!deal) return getEmptyDealReadiness();
+    return getDealReadiness({
+      parts,
+      parsedPartCount: deal.parsedParts.length,
+      listingPrice: deal.listingPrice,
+    });
+  }, [deal, parts]);
+
   const intel = useMemo(() => {
-    if (!scrape || !deal) return null;
+    if (!scrape || !deal || !readiness.hasParts) return null;
     return buildDealIntelligence(
       parts,
       scrape,
       deal.estimatedResaleValue,
       deal.listingPrice
     );
-  }, [scrape, deal, parts]);
+  }, [scrape, deal, parts, readiness.hasParts]);
 
   const platformResults = useMemo(() => {
-    if (!deal) return [];
+    if (!deal || !readiness.isComplete) return [];
     return compareAllPlatforms({
       salePrice: deal.estimatedResaleValue,
       purchasePrice: deal.listingPrice,
       shippingCost: FLIP_PLATFORM_SHIPPING,
       otherExpenses: FLIP_OTHER_EXPENSES,
     });
-  }, [deal]);
+  }, [deal, readiness.isComplete]);
 
   const generatedListing = useMemo(() => {
-    if (Object.keys(parts).length === 0) return null;
+    if (!readiness.hasParts) return null;
     return generateListingCopy(parts, "Deal Flip Build");
-  }, [parts]);
+  }, [parts, readiness.hasParts]);
 
   const recommendation = useMemo(
     () =>
-      deal ? generateResellerRecommendation(parts, deal.listingPrice) : null,
-    [deal, parts]
+      deal && readiness.isComplete
+        ? generateResellerRecommendation(parts, deal.listingPrice)
+        : null,
+    [deal, parts, readiness.isComplete]
   );
 
   const isParsing = listing !== debouncedListing;
-  const partCount = getPartCount(parts);
-  const hasCoreComponent = Boolean(parts.cpu || parts.gpu);
-  const hasParts = deal != null && deal.parsedParts.length > 0;
-  const hasPrice = deal != null && deal.listingPrice > 0;
-  const hasMeaningfulAnalysis =
-    hasParts && hasPrice && hasCoreComponent && partCount >= 2;
-  const hasFullAnalysis =
-    hasMeaningfulAnalysis && recommendation != null;
   const bestPlatform = platformResults[0];
 
   const ebaySearch = useMemo(
-    () => (Object.keys(parts).length > 0 ? buildEbaySearchQuery(parts) : null),
-    [parts]
+    () =>
+      readiness.isComplete && readiness.hasCoreComponent
+        ? buildEbaySearchQuery(parts)
+        : null,
+    [parts, readiness.isComplete, readiness.hasCoreComponent]
   );
   const {
     data: ebayComps,
@@ -159,7 +168,7 @@ export default function DealAnalyzerPage() {
     error: ebayError,
     refetch: refetchEbay,
   } = useEbayComps(ebaySearch?.query ?? "", {
-    enabled: hasParts,
+    enabled: Boolean(ebaySearch),
     mode: ebaySearch?.mode,
   });
 
@@ -170,7 +179,9 @@ export default function DealAnalyzerPage() {
       defaultCondition: listingHintToCondition(scrape.hints.condition),
       costs: {
         purchasePrice: deal.listingPrice,
-        targetSellingPrice: deal.estimatedResaleValue,
+        targetSellingPrice: readiness.isComplete
+          ? deal.estimatedResaleValue
+          : 0,
         shippingCosts: FLIP_PLATFORM_SHIPPING,
         otherExpenses: FLIP_OTHER_EXPENSES,
       },
@@ -195,7 +206,20 @@ export default function DealAnalyzerPage() {
         description="Paste any listing — parts, price, and profit update live as you type."
       />
 
-      {hasFullAnalysis && deal && recommendation && (
+      {!hasListingInput && !isParsing && (
+        <Card className="border-dashed border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">
+          <CardHeader>
+            <CardTitle className="text-base">Paste a listing to start</CardTitle>
+            <CardDescription>
+              Copy the full ad from Facebook, eBay, or Craigslist — include CPU,
+              GPU, RAM, storage, and the asking price. Or tap &quot;Try sample
+              listing&quot; below.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {readiness.isComplete && deal && recommendation && (
         <FlipVerdictHero
           rating={deal.rating}
           verdict={recommendation.verdict}
@@ -208,15 +232,26 @@ export default function DealAnalyzerPage() {
         />
       )}
 
-      {hasParts && hasPrice && !hasMeaningfulAnalysis && deal && (
+      {readiness.hasParts && readiness.hasPrice && !readiness.isComplete && deal && (
         <Card className="border-dashed border-amber-500/40 bg-amber-500/5">
           <CardHeader>
             <CardTitle className="text-base">Incomplete listing detected</CardTitle>
             <CardDescription>
-              We found {deal.parsedParts.length} part
-              {deal.parsedParts.length === 1 ? "" : "s"} ({deal.parsedParts.join(", ")}
-              ) but need a CPU or GPU plus more specs for a reliable flip verdict.
-              Paste the full ad with processor, graphics card, RAM, and storage.
+              {incompleteListingMessage(deal.parsedParts)}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {readiness.hasParts && !readiness.hasPrice && deal && (
+        <Card className="border-dashed border-sky-500/30 bg-sky-500/5">
+          <CardHeader>
+            <CardTitle className="text-base">Parts found — add a price</CardTitle>
+            <CardDescription>
+              Matched {deal.parsedParts.length} part
+              {deal.parsedParts.length === 1 ? "" : "s"}. Include the asking
+              price in the listing (e.g. $450 or $450 OBO) to see profit and
+              offer math.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -250,19 +285,32 @@ export default function DealAnalyzerPage() {
             >
               Try sample listing
             </Button>
+            {listing.trim().length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setListing("")}
+              >
+                Clear
+              </Button>
+            )}
             {isParsing && (
               <span className="text-xs text-[var(--color-muted-foreground)]">
                 Analyzing…
               </span>
             )}
-            {!isParsing && hasParts && deal && (
+            {!isParsing && readiness.hasParts && deal && (
               <span className="text-xs text-[var(--color-success)]">
                 {deal.parsedParts.length} parts matched
-                {!hasPrice && " · add a price ($450) for profit math"}
+                {!readiness.hasPrice && " · add a price ($450) for profit math"}
+                {readiness.hasPrice &&
+                  !readiness.isComplete &&
+                  " · add CPU/GPU for full verdict"}
               </span>
             )}
           </div>
-          {hasParts && Object.keys(parts).length > 0 && (
+          {readiness.hasParts && (
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <Button onClick={handleLoadBuild} className="w-full sm:w-auto">
                 Open in 3D builder
@@ -271,6 +319,7 @@ export default function DealAnalyzerPage() {
                 variant="outline"
                 onClick={handleOpenProfit}
                 className="w-full sm:w-auto"
+                disabled={!readiness.isComplete}
               >
                 Profit calculator
               </Button>
@@ -279,24 +328,20 @@ export default function DealAnalyzerPage() {
         </Card>
 
         <div className="space-y-4">
-          {hasParts && deal ? (
+          {readiness.hasParts && deal ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {hasFullAnalysis
-                    ? "Quick verdict"
-                    : hasMeaningfulAnalysis
-                      ? "Quick verdict"
-                      : "Parts detected"}
+                  {readiness.isComplete ? "Quick verdict" : "Parts detected"}
                 </CardTitle>
                 <CardDescription>
-                  {hasFullAnalysis && bestPlatform
+                  {readiness.isComplete && bestPlatform
                     ? `${bestPlatform.shortName} nets ${formatCurrency(bestPlatform.netProfit)} after real fees`
-                    : hasMeaningfulAnalysis && hasPrice
+                    : readiness.isComplete
                       ? "Profit uses platform-specific fees, not a flat 10%"
-                      : hasPrice && !hasCoreComponent
+                      : readiness.hasPrice && !readiness.hasCoreComponent
                         ? "Add a CPU or GPU to the listing for accurate resale math"
-                        : hasPrice
+                        : readiness.hasPrice
                           ? "Add more specs (CPU, GPU, RAM) for a reliable verdict"
                           : "Add asking price (e.g. $450) to see profit and offer"}
                 </CardDescription>
@@ -309,43 +354,42 @@ export default function DealAnalyzerPage() {
                   <p className="mt-1 font-bold tabular-nums">
                     {formatCurrency(deal.estimatedResaleValue)}
                   </p>
+                  {!readiness.isComplete && (
+                    <p className="mt-1 text-[10px] text-amber-400/90">
+                      Estimate only — paste full listing
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-xl bg-[var(--color-secondary)]/50 p-3">
                   <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    {hasPrice && hasMeaningfulAnalysis
-                      ? "Margin"
-                      : hasPrice
-                        ? "Asking price"
-                        : "Asking price"}
+                    {readiness.isComplete ? "Margin" : "Asking price"}
                   </p>
                   <p
                     className={`mt-1 font-bold tabular-nums ${
-                      hasPrice && hasMeaningfulAnalysis
+                      readiness.isComplete
                         ? deal.estimatedProfitPotential >= 0
                           ? "text-[var(--color-success)]"
                           : "text-[var(--color-destructive)]"
                         : "text-[var(--color-muted-foreground)]"
                     }`}
                   >
-                    {hasPrice && hasMeaningfulAnalysis
+                    {readiness.isComplete
                       ? `${deal.estimatedProfitPotential >= 0 ? "+" : ""}${formatCurrency(deal.estimatedProfitPotential)}`
-                      : hasPrice
+                      : readiness.hasPrice
                         ? formatCurrency(deal.listingPrice)
                         : "—"}
                   </p>
                 </div>
               </div>
-              {hasParts && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {deal.parsedParts.map((p) => (
-                    <Badge key={p} variant="secondary">
-                      {p}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {deal.parsedParts.map((p) => (
+                  <Badge key={p} variant="secondary">
+                    {p}
+                  </Badge>
+                ))}
+              </div>
             </Card>
-          ) : debouncedListing.trim().length >= 3 && !isParsing ? (
+          ) : hasListingInput && !isParsing ? (
             <Card className="border-dashed border-amber-500/30">
               <CardHeader>
                 <CardTitle className="text-base">No parts matched</CardTitle>
@@ -369,9 +413,9 @@ export default function DealAnalyzerPage() {
         </div>
       </div>
 
-      {deal && (
+      {readiness.hasParts && deal && (
         <div className="space-y-3">
-          {ebaySearch && (
+          {ebaySearch && readiness.isComplete && (
             <EbayCompsPanel
               query={ebaySearch.query}
               data={ebayComps}
@@ -389,7 +433,7 @@ export default function DealAnalyzerPage() {
                 ? `${deal.parsedParts.length} parts matched`
                 : "No parts detected — check listing text"
             }
-            defaultOpen={deal.parsedParts.length > 0}
+            defaultOpen={!readiness.isComplete}
           >
             {deal.parsedParts.length > 0 ? (
               <div className="flex flex-wrap gap-2">
@@ -412,7 +456,7 @@ export default function DealAnalyzerPage() {
             )}
           </CollapsibleBlock>
 
-          {platformResults.length > 0 && (
+          {readiness.isComplete && platformResults.length > 0 && (
             <CollapsibleBlock
               title="Sell on which platform?"
               subtitle={`${platformResults.length} channels compared`}
@@ -422,6 +466,7 @@ export default function DealAnalyzerPage() {
           )}
 
           {intel &&
+            readiness.isComplete &&
             (intel.redFlags.length > 0 ||
               intel.inspectionChecklist.length > 0) && (
               <CollapsibleBlock
@@ -436,7 +481,7 @@ export default function DealAnalyzerPage() {
               </CollapsibleBlock>
             )}
 
-          {generatedListing && (
+          {generatedListing && readiness.isComplete && (
             <CollapsibleBlock
               title="Listing copy"
               subtitle="Title and description to paste when you resell"

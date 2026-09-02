@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useInventoryStore, useSettingsStore, useBuildStore } from "@/lib/inventory/store";
 import { ActiveRigBar } from "@/components/layout/active-rig-bar";
 import { PageStepBanner } from "@/components/layout/page-step-banner";
 import { WorkflowStepper } from "@/components/layout/workflow-stepper";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -70,12 +72,16 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="mb-4 hidden lg:block">
-        <WorkflowStepper />
-      </div>
-      <div className="mb-3 lg:hidden">
-        <WorkflowStepper compact />
-      </div>
+      {pathname !== "/deal" && (
+        <>
+          <div className="mb-4 hidden lg:block">
+            <WorkflowStepper />
+          </div>
+          <div className="mb-3 lg:hidden">
+            <WorkflowStepper compact />
+          </div>
+        </>
+      )}
       <ActiveRigBar />
       <PageStepBanner />
       {children}
