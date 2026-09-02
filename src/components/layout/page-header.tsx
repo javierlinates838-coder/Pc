@@ -21,8 +21,8 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 flex-1">
-        <h1 className="hidden text-xl font-bold tracking-tight lg:block sm:text-2xl xl:text-3xl">
-          {title}
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl xl:text-3xl">
+          <span className="text-gradient">{title}</span>
         </h1>
         {description && (
           <p className="text-sm leading-relaxed text-[var(--color-muted-foreground)] lg:mt-1.5">

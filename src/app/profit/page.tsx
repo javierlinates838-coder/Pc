@@ -18,6 +18,7 @@ import { componentMapToEntries, getPartCount } from "@/lib/build/helpers";
 import { estimateFlipResale } from "@/lib/flip/resale";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/page-header";
+import { OfferSlider } from "@/components/profit/offer-slider";
 import type { ResellerCosts } from "@/lib/types/reseller";
 
 export default function ProfitCalculatorPage() {
@@ -65,6 +66,13 @@ export default function ProfitCalculatorPage() {
   }, [suggestedSale, salePriceTouched]); // intentionally not including costs
 
   const profit = useMemo(() => calculateProfit(costs), [costs]);
+
+  const offerMin = Math.max(0, Math.round(profit.maxPurchasePrice * 0.6));
+  const offerMax = Math.max(
+    costs.targetSellingPrice,
+    costs.purchasePrice || 100,
+    offerMin + 50
+  );
 
   const platformResults = useMemo(
     () =>
@@ -175,6 +183,17 @@ export default function ProfitCalculatorPage() {
         <p className="text-center text-sm text-[var(--color-primary)]">
           {saveMessage}
         </p>
+      )}
+
+      {costs.targetSellingPrice > 0 && (
+        <OfferSlider
+          min={offerMin}
+          max={offerMax}
+          value={costs.purchasePrice}
+          onChange={(v) => updateCost("purchasePrice", v)}
+          profit={profit.estimatedProfit}
+          roi={profit.roi}
+        />
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">

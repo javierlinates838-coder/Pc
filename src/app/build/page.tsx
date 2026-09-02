@@ -144,108 +144,164 @@ export default function BuildAnalyzerPage() {
         </p>
       )}
 
-      {hasParts && (
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="text-xs text-[var(--color-muted-foreground)]">
-            Condition
-          </label>
-          <Select
-            value={overallCondition}
-            onChange={(e) => setAllConditions(e.target.value as Condition)}
-            className="h-9 w-auto min-w-[120px] text-xs"
-          >
-            {CONDITION_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </Select>
-          {activeInventoryId && (
-            <Badge variant="secondary">Linked to inventory</Badge>
+      <div className="lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start lg:gap-6">
+        <div className="space-y-4 sm:space-y-5">
+          {hasParts && (
+            <div className="flex flex-wrap items-center gap-2 lg:hidden">
+              <label className="text-xs text-[var(--color-muted-foreground)]">
+                Condition
+              </label>
+              <Select
+                value={overallCondition}
+                onChange={(e) => setAllConditions(e.target.value as Condition)}
+                className="h-9 w-auto min-w-[120px] text-xs"
+              >
+                {CONDITION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+              {activeInventoryId && (
+                <Badge variant="secondary">Linked to inventory</Badge>
+              )}
+              {activeInventoryId && (
+                <Button variant="outline" size="sm" onClick={handleUpdateInventory}>
+                  Update inventory
+                </Button>
+              )}
+            </div>
           )}
-          {activeInventoryId && (
-            <Button variant="outline" size="sm" onClick={handleUpdateInventory}>
-              Update inventory
-            </Button>
+
+          <BuildVisualizer scene={visualizerScene} hasParts={hasParts} />
+
+          {hasParts && (
+            <BuildFinancialBar
+              partsTotal={financials.partsTotal}
+              costTotal={financials.costTotal}
+              listPrice={financials.listPrice}
+              profit={financials.profit}
+              purchasePrice={financials.purchasePrice}
+              netProfitAfterFees={financials.netProfitAfterFees}
+              bestPlatformName={financials.bestPlatformName}
+            />
+          )}
+
+          {hasParts && (
+            <>
+              <CompatibilitySummary
+                compatibleCount={compat.compatibleCount}
+                warningCount={compat.warningCount}
+                incompatibleCount={compat.incompatibleCount}
+                overallStatus={compat.overallStatus}
+              />
+
+              <Card className="border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5">
+                <CardHeader className="pb-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base">Quick read</CardTitle>
+                    <VerdictBadge verdict={recommendation.verdict} />
+                  </div>
+                  <CardDescription>
+                    Quality {quality.total}/100 · List est.{" "}
+                    {formatCurrency(financials.listPrice)}
+                    {financials.netProfitAfterFees !== null
+                      ? ` · Profit ${formatCurrency(financials.netProfitAfterFees)} after fees`
+                      : ` · Parts margin ${formatCurrency(financials.profit)}`}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <GameFpsPanel gpu={currentBuild.gpu} />
+
+              <BuildExportPanel
+                build={currentBuild}
+                buildName={buildName}
+                listPrice={financials.listPrice}
+                purchasePrice={flipCosts.purchasePrice}
+                profit={financials.netProfitAfterFees ?? financials.profit}
+              />
+            </>
+          )}
+
+          {!hasParts && (
+            <Card className="border-dashed border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 lg:hidden">
+              <p className="text-center text-sm text-[var(--color-muted-foreground)]">
+                Pick parts on the right to see your 3D rig come alive.
+              </p>
+            </Card>
           )}
         </div>
-      )}
 
-      <BuildVisualizer scene={visualizerScene} hasParts={hasParts} />
-
-      {hasParts && (
-        <BuildFinancialBar
-          partsTotal={financials.partsTotal}
-          costTotal={financials.costTotal}
-          listPrice={financials.listPrice}
-          profit={financials.profit}
-          purchasePrice={financials.purchasePrice}
-          netProfitAfterFees={financials.netProfitAfterFees}
-          bestPlatformName={financials.bestPlatformName}
-        />
-      )}
-
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
-        <button
-          type="button"
-          onClick={() => setPartsOpen(!partsOpen)}
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-        >
-          <div>
-            <p className="text-sm font-semibold">Components</p>
-            <p className="text-[10px] text-[var(--color-muted-foreground)]">
-              {partCount > 0
-                ? `${partCount} parts selected`
-                : "Tap to add CPU, GPU, board…"}
-            </p>
-          </div>
-          {partsOpen ? (
-            <ChevronUp className="h-5 w-5 text-[var(--color-muted-foreground)]" />
-          ) : (
-            <ChevronDown className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+        <div className="mt-4 space-y-4 lg:mt-0 lg:sticky lg:top-4">
+          {hasParts && (
+            <div className="hidden flex-wrap items-center gap-2 lg:flex">
+              <label className="text-xs text-[var(--color-muted-foreground)]">
+                Condition
+              </label>
+              <Select
+                value={overallCondition}
+                onChange={(e) => setAllConditions(e.target.value as Condition)}
+                className="h-9 w-auto min-w-[120px] text-xs"
+              >
+                {CONDITION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+              {activeInventoryId && (
+                <Badge variant="secondary">Linked to inventory</Badge>
+              )}
+              {activeInventoryId && (
+                <Button variant="outline" size="sm" onClick={handleUpdateInventory}>
+                  Update inventory
+                </Button>
+              )}
+            </div>
           )}
-        </button>
-        {partsOpen && (
-          <div className="border-t border-[var(--color-border)] px-4 pb-4 pt-3">
-            <PartSelector />
+
+          <div className="glass-panel rounded-2xl lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => setPartsOpen(!partsOpen)}
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left lg:cursor-default"
+            >
+              <div>
+                <p className="text-sm font-semibold">Components</p>
+                <p className="text-[10px] text-[var(--color-muted-foreground)]">
+                  {partCount > 0
+                    ? `${partCount} parts selected`
+                    : "Add CPU, GPU, board…"}
+                </p>
+              </div>
+              <span className="lg:hidden">
+                {partsOpen ? (
+                  <ChevronUp className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+                )}
+              </span>
+            </button>
+            <div
+              className={`border-t border-[var(--color-border)] px-4 pb-4 pt-3 ${!partsOpen ? "max-lg:hidden" : ""}`}
+            >
+              <PartSelector />
+            </div>
           </div>
-        )}
+
+          {hasParts && (
+            <div className="hidden lg:block">
+              <Button className="w-full" onClick={() => router.push("/profit")}>
+                Run profit math →
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {hasParts && (
-        <>
-          <CompatibilitySummary
-            compatibleCount={compat.compatibleCount}
-            warningCount={compat.warningCount}
-            incompatibleCount={compat.incompatibleCount}
-            overallStatus={compat.overallStatus}
-          />
-
-          <Card className="border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5">
-            <CardHeader className="pb-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <CardTitle className="text-base">Quick read</CardTitle>
-                <VerdictBadge verdict={recommendation.verdict} />
-              </div>
-              <CardDescription>
-                Quality {quality.total}/100 · List est.{" "}
-                {formatCurrency(financials.listPrice)}
-                {financials.netProfitAfterFees !== null
-                  ? ` · Profit ${formatCurrency(financials.netProfitAfterFees)} after fees`
-                  : ` · Parts margin ${formatCurrency(financials.profit)}`}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <GameFpsPanel gpu={currentBuild.gpu} />
-
-          <BuildExportPanel
-            build={currentBuild}
-            buildName={buildName}
-            listPrice={financials.listPrice}
-            purchasePrice={flipCosts.purchasePrice}
-            profit={financials.netProfitAfterFees ?? financials.profit}
-          />
-
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
             <button
               type="button"
               onClick={() => setAnalysisOpen(!analysisOpen)}
@@ -431,11 +487,10 @@ export default function BuildAnalyzerPage() {
               </div>
             )}
           </div>
-        </>
       )}
 
       {!hasParts && (
-        <Card className="border-dashed border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">
+        <Card className="border-dashed border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 lg:hidden">
           <p className="text-center text-sm text-[var(--color-muted-foreground)]">
             Open <strong className="text-[var(--color-foreground)]">Components</strong>{" "}
             above to start building. The 3D view updates as you add parts.

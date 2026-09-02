@@ -34,8 +34,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarNav />
         </div>
         <div className="border-t border-[var(--color-border)] p-4">
-          <p className="text-center text-[10px] text-[var(--color-muted-foreground)]">
-            Local engine · 205+ parts · No API
+          <p className="text-center text-[10px] leading-relaxed text-[var(--color-muted-foreground)]">
+            <span className="font-semibold text-[var(--color-primary)]">205+ parts</span>
+            {" · "}12 platforms · 3D rig builder
+            <br />
+            Local engine — no API keys needed
           </p>
         </div>
       </aside>
