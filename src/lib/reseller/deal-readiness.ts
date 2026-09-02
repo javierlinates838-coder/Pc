@@ -70,15 +70,25 @@ export function getFoundPcParts(parts: ComponentMap): { key: string; label: stri
   return found;
 }
 
-/** Full flip verdict needs CPU + GPU + RAM or storage + price */
+/** Full flip verdict needs price + GPU or CPU + enough supporting parts */
 export function isDealComplete(
   parts: ComponentMap,
   parsedPartCount: number,
   listingPrice: number
 ): boolean {
-  if (listingPrice <= 0 || parsedPartCount < 3) return false;
-  if (!parts.cpu || !parts.gpu) return false;
-  return Boolean(parts.ram || hasStorage(parts) || parts.motherboard);
+  if (listingPrice <= 0 || parsedPartCount < 4) return false;
+
+  const hasGpu = Boolean(parts.gpu);
+  const hasCpu = Boolean(parts.cpu);
+  if (!hasGpu && !hasCpu) return false;
+  if (!parts.ram && !hasStorage(parts)) return false;
+
+  if (hasGpu) {
+    const supportCount = parsedPartCount - 1 - (hasCpu ? 1 : 0);
+    return supportCount >= 2;
+  }
+
+  return hasCpu && parsedPartCount >= 3;
 }
 
 export function getDealReadiness({

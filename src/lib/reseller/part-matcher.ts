@@ -135,6 +135,16 @@ export function matchComponentFromQuery(
     if (category && component.category !== category) {
       return false;
     }
+    if (category === "motherboard") {
+      const mobo = component as import("@/lib/types/components").Motherboard;
+      const chip = query.match(/\bb(\d{3})[me]?\b/i);
+      if (chip && mobo.chipset.toLowerCase() !== `b${chip[1]}`.toLowerCase()) {
+        return false;
+      }
+      if (/tomahawk/i.test(query) && !/tomahawk/i.test(mobo.name)) {
+        return false;
+      }
+    }
     return componentContainsModel(component, modelTokens, query);
   });
 

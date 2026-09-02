@@ -69,6 +69,22 @@ export const nvmeSSDs: Storage[] = [
 
 export const sataSSDs: Storage[] = [
   {
+    id: "ssd-sata-240gb",
+    name: "240GB SATA SSD",
+    brand: "Generic",
+    model: "240GB SATA",
+    category: "storage",
+    performanceTier: "budget",
+    pricing: { usedMin: 15, usedMax: 28, newMin: 30, newMax: 40 },
+    type: "SATA SSD",
+    capacityGb: 240,
+    interface: "SATA III",
+    formFactor: "2.5\"",
+    readSpeedMbps: 500,
+    writeSpeedMbps: 450,
+    tags: ["budget", "oem"],
+  },
+  {
     id: "ssd-sata-500gb",
     name: "500GB SATA SSD",
     brand: "Crucial",

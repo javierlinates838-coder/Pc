@@ -14,8 +14,9 @@ export function getPlainEnglishDeal(args: {
   askingPrice: number;
   resalePrice: number;
   isComplete: boolean;
+  hasPrice: boolean;
   foundCount: number;
-  missingCount: number;
+  missingLabels: string[];
 }): PlainEnglishDeal {
   const {
     rating,
@@ -23,17 +24,31 @@ export function getPlainEnglishDeal(args: {
     askingPrice,
     resalePrice,
     isComplete,
+    hasPrice,
     foundCount,
-    missingCount,
+    missingLabels,
   } = args;
 
-  if (!isComplete) {
+  if (foundCount > 0 && !hasPrice) {
     return {
-      headline: "Not enough info yet",
+      headline: "Add the asking price",
+      explanation: `We matched ${foundCount} parts from this listing. Paste the seller's price too — like "$650" or "$650 OBO" — and we'll calculate whether it's a good flip.`,
+      actionLabel: "Add price to the listing text",
+      tone: "incomplete",
+    };
+  }
+
+  if (!isComplete) {
+    const missingText =
+      missingLabels.length > 0
+        ? `Still not listed: ${missingLabels.join(", ")}.`
+        : "A few specs are still missing.";
+    return {
+      headline: foundCount > 0 ? "Almost there" : "Not enough info yet",
       explanation:
         foundCount > 0
-          ? `We found ${foundCount} part${foundCount === 1 ? "" : "s"}, but ${missingCount} common PC parts are still missing from the listing. Profit math is unreliable until you paste RAM, storage, or a fuller spec list.`
-          : "Paste the seller's full ad — include CPU, GPU, RAM, storage, and the asking price.",
+          ? `We found ${foundCount} parts. ${missingText} Ask the seller or add those details before trusting the profit math.`
+          : "Paste the seller's full ad — include CPU or GPU, RAM, storage, and the asking price.",
       actionLabel: "Add more listing details",
       tone: "incomplete",
     };

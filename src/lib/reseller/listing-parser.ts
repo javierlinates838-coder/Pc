@@ -97,6 +97,7 @@ const STORAGE_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\b(\d+(?:\.\d+)?)\s*tb\s*(?:nvme|ssd|m\.2)?/i, query: "$1tb nvme ssd" },
   { pattern: /\b(\d+)\s*gb\s*nvme\b/i, query: "$1gb nvme ssd" },
   { pattern: /\b(\d+)\s*gb\s*ssd\b/i, query: "$1gb sata ssd" },
+  { pattern: /\b(\d{2,4})\s*ssd\b/i, query: "$1gb sata ssd" },
 ];
 
 const PSU_PATTERNS: { pattern: RegExp; query: string }[] = [
@@ -172,6 +173,15 @@ function expandLine(line: string): string[] {
     if (
       (key === "nvme" || key === "ssd" || key === "1tb") &&
       /\d\s*tb/i.test(lower)
+    ) {
+      continue;
+    }
+    if (key === "ssd" && /\b\d{2,4}\s*ssd\b/i.test(lower)) {
+      continue;
+    }
+    if (
+      (key === "16gb" || key === "8gb") &&
+      /\b(32|64)\s*gb/i.test(lower)
     ) {
       continue;
     }
@@ -268,7 +278,12 @@ function assignPart(parts: ComponentMap, match: { id: string; category: string; 
   if (match.category === "gpu" && !parts.gpu) parts.gpu = match as GPU;
   if (match.category === "motherboard" && !parts.motherboard)
     parts.motherboard = match as Motherboard;
-  if (match.category === "ram" && !parts.ram) parts.ram = match as RAM;
+  if (match.category === "ram") {
+    const next = match as RAM;
+    if (!parts.ram || next.capacityGb >= parts.ram.capacityGb) {
+      parts.ram = next;
+    }
+  }
   if (match.category === "storage") {
     if (!parts.storage) parts.storage = [];
     const exists = parts.storage.some((s) => s.id === match.id);
@@ -296,9 +311,16 @@ function tryMatchQuery(
   const matched = matchComponentFromQuery(q);
   if (!matched) return false;
 
+  if (matched.category === "ram" && parts.ram) {
+    const next = matched as RAM;
+    if (next.capacityGb <= parts.ram.capacityGb) return false;
+    const oldIdx = parsedPartNames.indexOf(parts.ram.name);
+    if (oldIdx >= 0) parsedPartNames.splice(oldIdx, 1);
+  }
+
   const before = countDetectedParts(parts);
   assignPart(parts, matched);
-  if (countDetectedParts(parts) > before) {
+  if (countDetectedParts(parts) > before || matched.category === "ram") {
     if (!parsedPartNames.includes(matched.name)) {
       parsedPartNames.push(matched.name);
     }
@@ -308,11 +330,23 @@ function tryMatchQuery(
 }
 
 function splitListingLines(text: string, normalized: string): string[] {
-  const raw = text
-    .split(/\n|•|;|\||\/|,/)
+  const prepped = text
+    .replace(/\b(fans)\s*\/\s*(cooler)\b/gi, "$1 and $2")
+    .replace(/\b(gpu|cpu|ram|psu)\s*\/\s*/gi, "$1 - ");
+
+  const raw = prepped
+    .split(/\n|•|;|\|/)
     .flatMap((segment) =>
       segment.split(/\s*\+\s*|\s+&\s+|\s+and\s+/i)
     )
+    .flatMap((segment) => {
+      if (/\d+\s*gb\s*ram/i.test(segment) && /\d+\s*ssd/i.test(segment)) {
+        const ram = segment.match(/.*?\d+\s*gb\s*ram/i)?.[0];
+        const storage = segment.match(/\d+\s*ssd.*/i)?.[0];
+        return [ram, storage].filter(Boolean) as string[];
+      }
+      return [segment];
+    })
     .map((l) => l.trim())
     .filter((l) => l.length > 2 && !/^\$[\d,]+$/.test(l));
 

@@ -198,27 +198,56 @@ export default function DealAnalyzerPage() {
   );
 
   const plainEnglish = useMemo(() => {
-    if (!deal || !ledger) {
+    if (!deal) {
       return getPlainEnglishDeal({
         rating: "FAIR",
         profitAfterFees: 0,
         askingPrice: 0,
         resalePrice: 0,
         isComplete: false,
+        hasPrice: false,
         foundCount: 0,
-        missingCount: readiness.missingParts.length,
+        missingLabels: readiness.missingParts.map((m) => m.label),
       });
     }
+
+    if (!readiness.hasPrice) {
+      return getPlainEnglishDeal({
+        rating: "FAIR",
+        profitAfterFees: 0,
+        askingPrice: 0,
+        resalePrice: 0,
+        isComplete: false,
+        hasPrice: false,
+        foundCount: deal.parsedParts.length,
+        missingLabels: readiness.missingParts.map((m) => m.label),
+      });
+    }
+
+    if (!ledger) {
+      return getPlainEnglishDeal({
+        rating: "FAIR",
+        profitAfterFees: 0,
+        askingPrice: deal.listingPrice,
+        resalePrice: valuation?.resaleMid ?? deal.estimatedResaleValue,
+        isComplete: readiness.isComplete,
+        hasPrice: true,
+        foundCount: deal.parsedParts.length,
+        missingLabels: readiness.missingParts.map((m) => m.label),
+      });
+    }
+
     return getPlainEnglishDeal({
       rating: ratingFromProfit(ledger.netProfit, deal.listingPrice),
       profitAfterFees: ledger.netProfit,
       askingPrice: deal.listingPrice,
       resalePrice: ledger.resalePrice,
       isComplete: readiness.isComplete,
+      hasPrice: true,
       foundCount: deal.parsedParts.length,
-      missingCount: readiness.missingParts.length,
+      missingLabels: readiness.missingParts.map((m) => m.label),
     });
-  }, [deal, ledger, readiness]);
+  }, [deal, ledger, readiness, valuation]);
 
   const isParsing = listing !== debouncedListing;
   const bestPlatform = platformResults[0];
@@ -373,6 +402,22 @@ export default function DealAnalyzerPage() {
           valuation={valuation}
           showMath={readiness.isComplete && readiness.hasPrice}
         />
+      )}
+
+      {readiness.hasParts && !readiness.hasPrice && deal && (
+        <Card className="border-dashed border-sky-500/30 bg-sky-500/5">
+          <CardHeader>
+            <CardTitle className="text-base">One more thing — what&apos;s the price?</CardTitle>
+            <CardDescription>
+              We matched {deal.parsedParts.length} parts. Add the asking price to
+              your paste (e.g. &quot;$650 OBO&quot;) and profit math will appear
+              instantly.
+              {readiness.missingParts.length === 1 &&
+                readiness.missingParts[0].key === "cpu" &&
+                " Note: no CPU listed — confirm with the seller what processor is inside."}
+            </CardDescription>
+          </CardHeader>
+        </Card>
       )}
 
       {readiness.hasParts && readiness.hasPrice && !readiness.isComplete && deal && (
