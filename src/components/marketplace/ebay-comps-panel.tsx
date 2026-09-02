@@ -86,7 +86,7 @@ export function EbayCompsPanel({
 
           {localEstimate != null && localEstimate > 0 && delta != null && (
             <p className="mt-3 text-xs text-[var(--color-muted-foreground)]">
-              Local estimate: {formatCurrency(localEstimate)}
+              Parts database estimate: {formatCurrency(localEstimate)}
               {" · "}
               <span
                 className={
@@ -95,9 +95,11 @@ export function EbayCompsPanel({
                     : "text-[var(--color-destructive)]"
                 }
               >
-                eBay median {delta >= 0 ? "+" : ""}
-                {formatCurrency(delta)}
+                eBay median is {formatCurrency(Math.abs(delta))}{" "}
+                {delta >= 0 ? "higher" : "lower"}
               </span>
+              {" "}
+              than our parts estimate
             </p>
           )}
 

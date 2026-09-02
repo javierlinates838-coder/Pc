@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowRight, DollarSign, TrendingDown, TrendingUp } from "lucide-react";
+import { DollarSign, TrendingDown, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { PlainEnglishDeal } from "@/lib/reseller/deal-plain-english";
+import type { DealProfitLedger } from "@/lib/reseller/deal-math";
+import type { ResaleValuation } from "@/lib/reseller/deal-valuation";
 
 const TONE_STYLES: Record<
   PlainEnglishDeal["tone"],
@@ -38,26 +40,20 @@ const TONE_STYLES: Record<
 
 interface DealVerdictPanelProps {
   plain: PlainEnglishDeal;
-  askingPrice: number;
-  resalePrice: number;
-  profitAfterFees: number;
-  offerPrice: number;
-  bestPlatform?: string;
+  ledger: DealProfitLedger | null;
+  valuation: ResaleValuation | null;
   showMath: boolean;
 }
 
 export function DealVerdictPanel({
   plain,
-  askingPrice,
-  resalePrice,
-  profitAfterFees,
-  offerPrice,
-  bestPlatform,
+  ledger,
+  valuation,
   showMath,
 }: DealVerdictPanelProps) {
   const style = TONE_STYLES[plain.tone];
   const Icon = style.icon;
-  const profitPositive = profitAfterFees >= 0;
+  const profitPositive = (ledger?.netProfit ?? 0) >= 0;
 
   return (
     <div
@@ -91,45 +87,56 @@ export function DealVerdictPanel({
           </div>
         </div>
 
-        {showMath && (
+        {showMath && ledger && valuation && (
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-3 sm:p-4">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">
-              Simple math
+              How we calculated this
             </p>
-            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:items-center">
-              <MathStep label="Seller wants" value={formatCurrency(askingPrice)} />
-              <ArrowRight className="hidden h-4 w-4 text-[var(--color-muted-foreground)] sm:block" />
-              <MathStep
-                label="Worth about"
-                value={formatCurrency(resalePrice)}
-                hint="complete PC resale"
+            <div className="space-y-2 text-sm">
+              <LedgerRow
+                label="You pay the seller"
+                value={formatCurrency(ledger.askingPrice)}
               />
-              <ArrowRight className="hidden h-4 w-4 text-[var(--color-muted-foreground)] sm:block" />
-              <MathStep
-                label="Your profit"
-                value={`${profitPositive ? "+" : ""}${formatCurrency(profitAfterFees)}`}
+              <LedgerRow
+                label="Gas / prep / supplies"
+                value={formatCurrency(ledger.shippingPrep + ledger.otherCosts)}
+                hint={`${formatCurrency(ledger.shippingPrep)} prep + ${formatCurrency(ledger.otherCosts)} misc`}
+              />
+              <LedgerRow
+                label="Total cash in"
+                value={formatCurrency(ledger.totalYouSpend)}
+                bold
+              />
+              <div className="my-2 border-t border-dashed border-[var(--color-border)]" />
+              <LedgerRow
+                label="You sell the PC for"
+                value={formatCurrency(ledger.resalePrice)}
+                hint={valuation.sourceLabel}
+              />
+              {ledger.saleFees > 0 && (
+                <LedgerRow
+                  label="Selling fees"
+                  value={`−${formatCurrency(ledger.saleFees)}`}
+                  hint={ledger.saleFeeNote}
+                />
+              )}
+              <LedgerRow
+                label="Money left over"
+                value={`${profitPositive ? "+" : ""}${formatCurrency(ledger.netProfit)}`}
+                bold
                 highlight={profitPositive ? "good" : "bad"}
-                hint="after fees"
               />
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] pt-3 text-xs text-[var(--color-muted-foreground)]">
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--color-border)] pt-3 text-xs text-[var(--color-muted-foreground)]">
               <span>
-                Suggested offer:{" "}
-                <strong className="text-[var(--color-foreground)]">
-                  {formatCurrency(offerPrice)}
-                </strong>
+                Parts add up to ~{formatCurrency(valuation.partOutMid)} parted out
               </span>
-              {bestPlatform && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>
-                    Best place to sell:{" "}
-                    <strong className="text-[var(--color-foreground)]">
-                      {bestPlatform}
-                    </strong>
-                  </span>
-                </>
-              )}
+              <span aria-hidden>·</span>
+              <span>
+                Offer up to {formatCurrency(ledger.offerPrice)} to leave room for profit
+              </span>
+              <span aria-hidden>·</span>
+              <span>Best to sell on {ledger.bestPlatform}</span>
             </div>
           </div>
         )}
@@ -142,34 +149,39 @@ export function DealVerdictPanel({
   );
 }
 
-function MathStep({
+function LedgerRow({
   label,
   value,
   hint,
+  bold,
   highlight,
 }: {
   label: string;
   value: string;
   hint?: string;
+  bold?: boolean;
   highlight?: "good" | "bad";
 }) {
   return (
-    <div className="rounded-lg bg-[var(--color-secondary)]/50 px-3 py-2">
-      <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
-        {label}
-      </p>
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-[var(--color-muted-foreground)]">{label}</p>
+        {hint && (
+          <p className="text-[10px] text-[var(--color-muted-foreground)]/80">
+            {hint}
+          </p>
+        )}
+      </div>
       <p
         className={cn(
-          "font-bold tabular-nums",
+          "shrink-0 tabular-nums",
+          bold && "text-base font-bold",
           highlight === "good" && "text-[var(--color-success)]",
           highlight === "bad" && "text-[var(--color-destructive)]"
         )}
       >
         {value}
       </p>
-      {hint && (
-        <p className="text-[10px] text-[var(--color-muted-foreground)]">{hint}</p>
-      )}
     </div>
   );
 }

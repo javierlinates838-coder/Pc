@@ -1,26 +1,54 @@
 import type { PCComponent, Condition, BuildPartEntry } from "@/lib/types/components";
 import type { PartValueBreakdown, ValueStrategyComparison } from "@/lib/types/reseller";
 
-const CONDITION_MULTIPLIERS: Record<Condition, number> = {
-  new: 1.0,
-  "like-new": 0.9,
-  used: 0.75,
-  fair: 0.55,
-  parts: 0.4,
-};
-
 export function getConditionMultiplier(condition: Condition): number {
-  return CONDITION_MULTIPLIERS[condition];
+  const multipliers: Record<Condition, number> = {
+    new: 1.0,
+    "like-new": 1.03,
+    used: 1.0,
+    fair: 0.82,
+    parts: 0.55,
+  };
+  return multipliers[condition];
 }
 
+/** usedMin/usedMax in the database are already used-market prices. */
 export function estimatePartValue(
   component: PCComponent,
   condition: Condition = "used"
 ): { min: number; max: number; mid: number } {
-  const multiplier = getConditionMultiplier(condition);
-  const min = Math.round(component.pricing.usedMin * multiplier);
-  const max = Math.round(component.pricing.usedMax * multiplier);
-  return { min, max, mid: Math.round((min + max) / 2) };
+  const { usedMin, usedMax, newMin, newMax } = component.pricing;
+
+  let min = usedMin;
+  let max = usedMax;
+
+  if (condition === "new" && newMin > 0 && newMax > 0) {
+    min = newMin;
+    max = newMax;
+  } else if (condition === "like-new") {
+    min = Math.round(usedMin * 1.05);
+    max = Math.round(usedMax * 1.02);
+  } else if (condition === "fair") {
+    min = Math.round(usedMin * 0.82);
+    max = Math.round(usedMax * 0.82);
+  } else if (condition === "parts") {
+    min = Math.round(usedMin * 0.55);
+    max = Math.round(usedMax * 0.55);
+  }
+
+  return {
+    min,
+    max,
+    mid: Math.round((min + max) / 2),
+  };
+}
+
+/** Bigger builds get a smaller complete-PC discount vs parting out. */
+function bundleMultiplier(partCount: number): number {
+  if (partCount >= 7) return 0.94;
+  if (partCount >= 5) return 0.92;
+  if (partCount >= 3) return 0.9;
+  return 0.88;
 }
 
 export function estimateCompletePcValue(
@@ -36,15 +64,30 @@ export function estimateCompletePcValue(
     partOutMax += val.max;
   }
 
-  const bundleMultiplier = 0.85 - compatibilityPenalty;
-  const completeMin = Math.round(partOutMin * bundleMultiplier);
-  const completeMax = Math.round(partOutMax * bundleMultiplier);
+  const mult = bundleMultiplier(parts.length) - compatibilityPenalty;
+  const completeMin = Math.round(partOutMin * mult);
+  const completeMax = Math.round(partOutMax * mult);
 
   return {
     min: completeMin,
     max: completeMax,
     mid: Math.round((completeMin + completeMax) / 2),
   };
+}
+
+export function sumPartOutValue(parts: BuildPartEntry[]): {
+  min: number;
+  max: number;
+  mid: number;
+} {
+  let min = 0;
+  let max = 0;
+  for (const part of parts) {
+    const val = estimatePartValue(part.component, part.condition);
+    min += val.min;
+    max += val.max;
+  }
+  return { min, max, mid: Math.round((min + max) / 2) };
 }
 
 export function buildPartValueBreakdown(

@@ -18,6 +18,9 @@ import {
   incompleteListingMessage,
 } from "@/lib/reseller/deal-readiness";
 import { getPlainEnglishDeal } from "@/lib/reseller/deal-plain-english";
+import { buildDealProfitLedger } from "@/lib/reseller/deal-math";
+import { resolveResaleValuation } from "@/lib/reseller/deal-valuation";
+import type { DealRating } from "@/lib/types/reseller";
 import { generateListingCopy } from "@/lib/reseller/listing-generator";
 import { compareAllPlatforms } from "@/lib/marketplaces/calculate";
 import { useBuildStore } from "@/lib/inventory/store";
@@ -41,6 +44,14 @@ const EXAMPLE_LISTING = `Ryzen 5 5600 + RTX 3060 12GB gaming PC
 B550 motherboard, 750w gold PSU
 Liquid cooled — $450 OBO
 Local pickup only`;
+
+function ratingFromProfit(netProfit: number, askingPrice: number): DealRating {
+  const margin = askingPrice > 0 ? netProfit / askingPrice : 0;
+  if (netProfit >= 150 && margin >= 0.25) return "GREAT";
+  if (netProfit >= 75 && margin >= 0.15) return "GOOD";
+  if (netProfit >= 25) return "FAIR";
+  return "BAD";
+}
 
 function CollapsibleBlock({
   title,
@@ -122,65 +133,6 @@ export default function DealAnalyzerPage() {
     });
   }, [deal, parts]);
 
-  const intel = useMemo(() => {
-    if (!scrape || !deal || !readiness.hasParts) return null;
-    return buildDealIntelligence(
-      parts,
-      scrape,
-      deal.estimatedResaleValue,
-      deal.listingPrice
-    );
-  }, [scrape, deal, parts, readiness.hasParts]);
-
-  const platformResults = useMemo(() => {
-    if (!deal || !readiness.isComplete) return [];
-    return compareAllPlatforms({
-      salePrice: deal.estimatedResaleValue,
-      purchasePrice: deal.listingPrice,
-      shippingCost: FLIP_PLATFORM_SHIPPING,
-      otherExpenses: FLIP_OTHER_EXPENSES,
-    });
-  }, [deal, readiness.isComplete]);
-
-  const generatedListing = useMemo(() => {
-    if (!readiness.hasParts) return null;
-    return generateListingCopy(parts, "Deal Flip Build");
-  }, [parts, readiness.hasParts]);
-
-  const recommendation = useMemo(
-    () =>
-      deal && readiness.isComplete
-        ? generateResellerRecommendation(parts, deal.listingPrice)
-        : null,
-    [deal, parts, readiness.isComplete]
-  );
-
-  const plainEnglish = useMemo(() => {
-    if (!deal) {
-      return getPlainEnglishDeal({
-        rating: "FAIR",
-        profitAfterFees: 0,
-        askingPrice: 0,
-        resalePrice: 0,
-        isComplete: false,
-        foundCount: 0,
-        missingCount: readiness.missingParts.length,
-      });
-    }
-    return getPlainEnglishDeal({
-      rating: deal.rating,
-      profitAfterFees: deal.estimatedProfitPotential,
-      askingPrice: deal.listingPrice,
-      resalePrice: deal.estimatedResaleValue,
-      isComplete: readiness.isComplete,
-      foundCount: deal.parsedParts.length,
-      missingCount: readiness.missingParts.length,
-    });
-  }, [deal, readiness]);
-
-  const isParsing = listing !== debouncedListing;
-  const bestPlatform = platformResults[0];
-
   const ebaySearch = useMemo(
     () =>
       readiness.isComplete && readiness.hasCoreComponent
@@ -198,6 +150,79 @@ export default function DealAnalyzerPage() {
     mode: ebaySearch?.mode,
   });
 
+  const valuation = useMemo(() => {
+    if (!readiness.isComplete || buildEntries.length === 0) return null;
+    return resolveResaleValuation(
+      buildEntries,
+      ebayComps?.median,
+      ebayComps?.listingCount ?? 0
+    );
+  }, [buildEntries, ebayComps, readiness.isComplete]);
+
+  const ledger = useMemo(() => {
+    if (!deal || !valuation || !readiness.isComplete) return null;
+    return buildDealProfitLedger({
+      askingPrice: deal.listingPrice,
+      resalePrice: valuation.resaleMid,
+      localPickup: scrape?.hints.localPickupOnly,
+    });
+  }, [deal, valuation, readiness.isComplete, scrape?.hints.localPickupOnly]);
+
+  const intel = useMemo(() => {
+    if (!scrape || !deal || !readiness.hasParts) return null;
+    const resale = valuation?.resaleMid ?? deal.estimatedResaleValue;
+    return buildDealIntelligence(parts, scrape, resale, deal.listingPrice);
+  }, [scrape, deal, parts, readiness.hasParts, valuation]);
+
+  const platformResults = useMemo(() => {
+    if (!deal || !ledger || !readiness.isComplete) return [];
+    return compareAllPlatforms({
+      salePrice: ledger.resalePrice,
+      purchasePrice: deal.listingPrice,
+      shippingCost: ledger.shippingPrep,
+      otherExpenses: ledger.otherCosts,
+    });
+  }, [deal, ledger, readiness.isComplete]);
+
+  const generatedListing = useMemo(() => {
+    if (!readiness.hasParts) return null;
+    return generateListingCopy(parts, "Deal Flip Build");
+  }, [parts, readiness.hasParts]);
+
+  const recommendation = useMemo(
+    () =>
+      deal && ledger && readiness.isComplete
+        ? generateResellerRecommendation(parts, deal.listingPrice)
+        : null,
+    [deal, parts, ledger, readiness.isComplete]
+  );
+
+  const plainEnglish = useMemo(() => {
+    if (!deal || !ledger) {
+      return getPlainEnglishDeal({
+        rating: "FAIR",
+        profitAfterFees: 0,
+        askingPrice: 0,
+        resalePrice: 0,
+        isComplete: false,
+        foundCount: 0,
+        missingCount: readiness.missingParts.length,
+      });
+    }
+    return getPlainEnglishDeal({
+      rating: ratingFromProfit(ledger.netProfit, deal.listingPrice),
+      profitAfterFees: ledger.netProfit,
+      askingPrice: deal.listingPrice,
+      resalePrice: ledger.resalePrice,
+      isComplete: readiness.isComplete,
+      foundCount: deal.parsedParts.length,
+      missingCount: readiness.missingParts.length,
+    });
+  }, [deal, ledger, readiness]);
+
+  const isParsing = listing !== debouncedListing;
+  const bestPlatform = platformResults[0];
+
   const loadSession = () => {
     if (!scrape || !deal) return;
     loadBuild(parts, {
@@ -205,9 +230,7 @@ export default function DealAnalyzerPage() {
       defaultCondition: listingHintToCondition(scrape.hints.condition),
       costs: {
         purchasePrice: deal.listingPrice,
-        targetSellingPrice: readiness.isComplete
-          ? deal.estimatedResaleValue
-          : 0,
+        targetSellingPrice: valuation?.resaleMid ?? deal.estimatedResaleValue,
         shippingCosts: FLIP_PLATFORM_SHIPPING,
         otherExpenses: FLIP_OTHER_EXPENSES,
       },
@@ -346,11 +369,8 @@ export default function DealAnalyzerPage() {
       {deal && readiness.hasParts && (
         <DealVerdictPanel
           plain={plainEnglish}
-          askingPrice={deal.listingPrice}
-          resalePrice={deal.estimatedResaleValue}
-          profitAfterFees={deal.estimatedProfitPotential}
-          offerPrice={deal.suggestedOfferPrice}
-          bestPlatform={bestPlatform?.shortName}
+          ledger={ledger}
+          valuation={valuation}
           showMath={readiness.isComplete && readiness.hasPrice}
         />
       )}
@@ -377,7 +397,7 @@ export default function DealAnalyzerPage() {
               data={ebayComps}
               loading={ebayLoading}
               error={ebayError}
-              localEstimate={deal.estimatedResaleValue}
+              localEstimate={valuation?.localMid ?? deal.estimatedResaleValue}
               onRefresh={refetchEbay}
             />
           )}
@@ -416,12 +436,10 @@ export default function DealAnalyzerPage() {
             </CollapsibleBlock>
           )}
 
-          {readiness.hasParts && !readiness.isComplete && deal && (
+          {readiness.hasParts && !readiness.isComplete && deal && valuation && (
             <p className="text-center text-xs text-[var(--color-muted-foreground)]">
-              Parts value shown: {formatCurrency(deal.estimatedResaleValue)} —
-              this is only from the {deal.parsedParts.length} part
-              {deal.parsedParts.length === 1 ? "" : "s"} we found, not the full
-              PC.
+              Parts value so far: {formatCurrency(valuation.localMid)} — add more
+              specs for a full recommendation.
             </p>
           )}
         </div>
