@@ -128,8 +128,26 @@ export class LocalPriceEstimator implements MarketPriceProvider {
 export class EbayPriceProvider implements MarketPriceProvider {
   name = "ebay";
 
-  async fetchPrice(): Promise<{ min: number; max: number } | null> {
-    return null;
+  async fetchPrice(
+    componentId: string
+  ): Promise<{ min: number; max: number } | null> {
+    const { getComponentById } = await import("@/lib/database");
+    const { fetchEbayComps } = await import("@/lib/ebay/comps");
+
+    const component = getComponentById(componentId);
+    if (!component) return null;
+
+    try {
+      const comps = await fetchEbayComps(component.name, { limit: 20 });
+      if (comps.listingCount === 0) return null;
+
+      return {
+        min: comps.low,
+        max: comps.high,
+      };
+    } catch {
+      return null;
+    }
   }
 }
 

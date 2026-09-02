@@ -25,6 +25,9 @@ import { ListingGeneratorPanel } from "@/components/deal/listing-generator-panel
 import { PlatformProfitTable } from "@/components/marketplace/platform-profit-table";
 import { FlipVerdictHero } from "@/components/shared/flip-verdict-hero";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { buildEbaySearchQuery } from "@/lib/ebay/comps";
+import { useEbayComps } from "@/hooks/use-ebay-comps";
+import { EbayCompsPanel } from "@/components/marketplace/ebay-comps-panel";
 
 const EXAMPLE_LISTING = `Ryzen 5 5600 + RTX 3060 12GB gaming PC
 16gb ram, 1tb nvme
@@ -137,6 +140,16 @@ export default function DealAnalyzerPage() {
   const isParsing = listing !== debouncedListing;
   const hasAnalysis = deal && recommendation && deal.listingPrice > 0;
   const bestPlatform = platformResults[0];
+
+  const ebayQuery = useMemo(
+    () => (Object.keys(parts).length > 0 ? buildEbaySearchQuery(parts) : ""),
+    [parts]
+  );
+  const {
+    data: ebayComps,
+    loading: ebayLoading,
+    error: ebayError,
+  } = useEbayComps(ebayQuery, { enabled: Boolean(hasAnalysis) });
 
   const loadSession = () => {
     if (!scrape || !deal) return;
@@ -289,6 +302,16 @@ export default function DealAnalyzerPage() {
 
       {deal && (
         <div className="space-y-3">
+          {ebayQuery && (
+            <EbayCompsPanel
+              query={ebayQuery}
+              data={ebayComps}
+              loading={ebayLoading}
+              error={ebayError}
+              localEstimate={deal.estimatedResaleValue}
+            />
+          )}
+
           <CollapsibleBlock
             title="Detected parts"
             subtitle={

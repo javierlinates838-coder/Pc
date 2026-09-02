@@ -60,7 +60,16 @@ Add new parts to `src/lib/database/` following the typed interfaces in `src/lib/
 ## Future API Integrations
 
 Provider interfaces are ready for:
-- eBay sold listings
+- **eBay Browse API** — live used-listing comps (see `.env.example`)
 - Amazon pricing
 - PCPartPicker data
 - OpenAI Vision (part scanner)
+
+### eBay API setup
+
+1. Create a keyset at [developer.ebay.com](https://developer.ebay.com/my/keys) (start with **Sandbox**)
+2. Copy `.env.example` to `.env.local` and fill in:
+   - `EBAY_CLIENT_ID` — your App ID
+   - `EBAY_CLIENT_SECRET` — your Cert ID
+   - `EBAY_ENVIRONMENT=sandbox` (switch to `production` when ready)
+3. Restart the dev server — Deal and Build pages will show live eBay comps

@@ -35,6 +35,9 @@ import { formatCurrency } from "@/lib/utils";
 import { VerdictBadge } from "@/components/ui/status-badge";
 import { Select } from "@/components/ui/select";
 import type { Condition } from "@/lib/types/components";
+import { buildEbaySearchQuery } from "@/lib/ebay/comps";
+import { useEbayComps } from "@/hooks/use-ebay-comps";
+import { EbayCompsPanel } from "@/components/marketplace/ebay-comps-panel";
 
 const CONDITION_OPTIONS: { value: Condition; label: string }[] = [
   { value: "new", label: "New" },
@@ -104,6 +107,16 @@ export default function BuildAnalyzerPage() {
     () => generateResellerRecommendation(currentBuild, flipCosts.purchasePrice),
     [currentBuild, flipCosts.purchasePrice]
   );
+
+  const ebayQuery = useMemo(
+    () => (hasParts ? buildEbaySearchQuery(currentBuild) : ""),
+    [currentBuild, hasParts]
+  );
+  const {
+    data: ebayComps,
+    loading: ebayLoading,
+    error: ebayError,
+  } = useEbayComps(ebayQuery, { enabled: hasParts });
 
   const overallCondition =
     entries[0]?.condition ?? ("used" as Condition);
@@ -213,6 +226,16 @@ export default function BuildAnalyzerPage() {
               </Card>
 
               <GameFpsPanel gpu={currentBuild.gpu} />
+
+              {ebayQuery && (
+                <EbayCompsPanel
+                  query={ebayQuery}
+                  data={ebayComps}
+                  loading={ebayLoading}
+                  error={ebayError}
+                  localEstimate={financials.listPrice}
+                />
+              )}
 
               <BuildExportPanel
                 build={currentBuild}

@@ -1,15 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useSettingsStore, useInventoryStore } from "@/lib/inventory/store";
 import { getDatabaseStats } from "@/lib/database";
 import { COMPETITOR_MATRIX } from "@/lib/database/intel/part-intel";
 import { PageHeader } from "@/components/layout/page-header";
+import type { EbayStatus } from "@/lib/ebay/types";
+import { CheckCircle2, CircleDashed } from "lucide-react";
 
 export default function SettingsPage() {
   const dbStats = getDatabaseStats();
+  const [ebayStatus, setEbayStatus] = useState<EbayStatus | null>(null);
   const {
     defaultMarketplaceFee,
     defaultShippingCost,
@@ -17,6 +22,19 @@ export default function SettingsPage() {
     setDefaultShippingCost,
   } = useSettingsStore();
   const { pcs } = useInventoryStore();
+
+  useEffect(() => {
+    fetch("/api/ebay/status")
+      .then((r) => r.json())
+      .then((data: EbayStatus) => setEbayStatus(data))
+      .catch(() =>
+        setEbayStatus({
+          configured: false,
+          environment: "sandbox",
+          message: "Could not check eBay status.",
+        })
+      );
+  }, []);
 
   const handleExport = () => {
     const data = JSON.stringify(pcs, null, 2);
@@ -155,29 +173,84 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      <Card className="neon-border">
+        <CardHeader>
+          <CardTitle>eBay API</CardTitle>
+          <CardDescription>
+            Live used-listing comps on Deal and Build pages — powered by eBay
+            Browse API
+          </CardDescription>
+        </CardHeader>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {ebayStatus?.configured ? (
+              <Badge variant="secondary" className="gap-1">
+                <CheckCircle2 className="h-3 w-3 text-[var(--color-success)]" />
+                Connected
+              </Badge>
+            ) : (
+              <Badge variant="warning" className="gap-1">
+                <CircleDashed className="h-3 w-3" />
+                Not configured
+              </Badge>
+            )}
+            {ebayStatus && (
+              <Badge variant="secondary">
+                {ebayStatus.environment === "sandbox" ? "Sandbox" : "Production"}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            {ebayStatus?.message ??
+              "Checking eBay connection…"}
+          </p>
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/30 p-4 text-xs text-[var(--color-muted-foreground)]">
+            <p className="font-semibold text-[var(--color-foreground)]">
+              Setup (server env vars)
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4">
+              <li>Create a keyset at developer.ebay.com (Sandbox first)</li>
+              <li>Copy App ID → <code className="text-[var(--color-primary)]">EBAY_CLIENT_ID</code></li>
+              <li>Copy Cert ID → <code className="text-[var(--color-primary)]">EBAY_CLIENT_SECRET</code></li>
+              <li>Set <code className="text-[var(--color-primary)]">EBAY_ENVIRONMENT=sandbox</code> then redeploy</li>
+            </ol>
+            <p className="mt-3">
+              See <code>.env.example</code> in the repo. Keys stay server-side —
+              never exposed to the browser.
+            </p>
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <CardHeader>
-          <CardTitle>Live APIs (coming)</CardTitle>
+          <CardTitle>Live APIs</CardTitle>
           <CardDescription>
-            Architecture ready — local engine works offline today
+            Integrations — local engine still works offline without keys
           </CardDescription>
         </CardHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
-            "eBay sold comps scraper",
-            "Facebook Marketplace parser",
-            "PCPartPicker price sync",
-            "GPU/CPU benchmark API",
-            "OpenAI Vision part ID",
-            "CamelCamelCamel alerts",
+            { name: "eBay Browse API (used comps)", status: ebayStatus?.configured ? "Active" : "Needs keys" },
+            { name: "Facebook Marketplace parser", status: "Planned" },
+            { name: "PCPartPicker price sync", status: "Planned" },
+            { name: "GPU/CPU benchmark API", status: "Planned" },
+            { name: "OpenAI Vision part ID", status: "Planned" },
+            { name: "CamelCamelCamel alerts", status: "Planned" },
           ].map((api) => (
             <div
-              key={api}
+              key={api.name}
               className="flex items-center justify-between rounded-lg bg-[var(--color-secondary)] p-3"
             >
-              <span className="text-sm">{api}</span>
-              <span className="text-xs text-[var(--color-muted-foreground)]">
-                Planned
+              <span className="text-sm">{api.name}</span>
+              <span
+                className={`text-xs ${
+                  api.status === "Active"
+                    ? "text-[var(--color-success)]"
+                    : "text-[var(--color-muted-foreground)]"
+                }`}
+              >
+                {api.status}
               </span>
             </div>
           ))}
