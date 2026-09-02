@@ -25,6 +25,8 @@ export interface EbaySearchOptions {
   usedOnly?: boolean;
   minPrice?: number;
   maxPrice?: number;
+  /** Full PC builds vs single parts */
+  mode?: "pc" | "part";
 }
 
 export async function searchEbayListings(
@@ -52,10 +54,13 @@ export async function searchEbayListings(
     q: options.query,
     limit: String(limit),
     filter: filters.join(","),
-    category_ids: EBAY_PC_CATEGORY_IDS,
   });
 
-  const response = await fetch(
+  if (options.mode !== "part") {
+    params.set("category_ids", EBAY_PC_CATEGORY_IDS);
+  }
+
+  let response = await fetch(
     `${getEbayApiBase()}/buy/browse/v1/item_summary/search?${params}`,
     {
       headers: {
@@ -72,8 +77,29 @@ export async function searchEbayListings(
     throw new Error(`eBay search failed (${response.status}): ${detail}`);
   }
 
-  const data = (await response.json()) as EbaySearchResponse;
-  const summaries = data.itemSummaries ?? [];
+  let data = (await response.json()) as EbaySearchResponse;
+  let summaries = data.itemSummaries ?? [];
+
+  // Retry without category filter if PC categories returned nothing
+  if (summaries.length === 0 && options.mode === "part") {
+    params.delete("category_ids");
+    response = await fetch(
+      `${getEbayApiBase()}/buy/browse/v1/item_summary/search?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE_ID,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+    if (response.ok) {
+      data = (await response.json()) as EbaySearchResponse;
+      summaries = data.itemSummaries ?? [];
+    }
+  }
+
   const listings: EbayListingSummary[] = [];
 
   for (const item of summaries) {

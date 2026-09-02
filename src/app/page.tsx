@@ -123,7 +123,7 @@ export default function DashboardPage() {
           className="font-mono text-xs"
         />
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Button onClick={handleQuickDeal} className="w-full sm:w-auto">
+          <Button onClick={handleQuickDeal} className="w-full sm:w-auto" disabled={!quickPaste.trim()}>
             <TrendingUp className="mr-1.5 h-4 w-4" />
             Analyze this deal
           </Button>

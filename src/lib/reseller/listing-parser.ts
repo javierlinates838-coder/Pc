@@ -70,6 +70,10 @@ const GPU_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\brtx\s*(\d{4}\s*(?:ti|super|xt)?)/i, query: "rtx $1" },
   { pattern: /\bgtx\s*(\d{4}\s*(?:ti|super)?)/i, query: "gtx $1" },
   { pattern: /\brx\s*(\d{4}\s*(?:xt|xtx)?)/i, query: "rx $1" },
+  { pattern: /\b(\d{4})\s*ti\s*super\b/i, query: "rtx $1 ti super" },
+  { pattern: /\b(\d{4})\s*ti\b/i, query: "rtx $1 ti" },
+  { pattern: /\b(\d{4})\s*super\b/i, query: "rtx $1 super" },
+  { pattern: /\b(30[5-9]\d|40[5-9]\d|50\d{2})\b/i, query: "rtx $1" },
   { pattern: /\b(\d{4})\s*xt\b/i, query: "rx $1 xt" },
 ];
 
@@ -82,19 +86,41 @@ const BOARD_PATTERNS: { pattern: RegExp; query: string }[] = [
   { pattern: /\b(a320|b350|x370|b450|b550|x570)\b/i, query: "$1" },
 ];
 
+const PSU_PATTERNS: { pattern: RegExp; query: string }[] = [
+  { pattern: /\b(\d{3,4})\s*w(?:att)?\s*(?:gold|platinum|bronze|silver)?\s*(?:psu|power supply)?/i, query: "$1w psu" },
+  { pattern: /\b(psu|power supply)\s*(\d{3,4})\s*w/i, query: "$2w psu" },
+];
+
 const LINE_MATCH_MIN_SCORE = 12;
 const BLOB_MATCH_MIN_SCORE = 35;
 
 export function extractListingPrice(text: string): number {
-  const asking = text.match(/(?:asking|obo|price|listed at)\s*[:.]?\s*\$[\d,]+/gi);
-  if (asking?.length) {
-    const m = asking[0].match(/\$[\d,]+(?:\.\d{2})?/);
-    if (m) return parseFloat(m[0].replace(/[$,]/g, ""));
+  const normalized = text.replace(/,/g, "");
+
+  const asking = normalized.match(
+    /(?:asking|price|listed at|sell(?:ing)? for)\s*[:.]?\s*\$?\s*(\d+(?:\.\d{2})?)/i
+  );
+  if (asking) return parseFloat(asking[1]);
+
+  const obo = normalized.match(/\$?\s*(\d+(?:\.\d{2})?)\s*(?:obo|o\.b\.o\.?|or best offer)/i);
+  if (obo) return parseFloat(obo[1]);
+
+  const dollars = normalized.match(/\$?\s*(\d+(?:\.\d{2})?)\s*dollars?/i);
+  if (dollars) return parseFloat(dollars[1]);
+
+  const prices = normalized.match(/\$[\d]+(?:\.\d{2})?/g);
+  if (prices?.length) {
+    return parseFloat(prices[prices.length - 1].replace(/[$,]/g, ""));
   }
-  const prices = text.match(/\$[\d,]+(?:\.\d{2})?/g);
-  if (!prices) return 0;
-  const last = prices[prices.length - 1];
-  return parseFloat(last.replace(/[$,]/g, ""));
+
+  // Trailing bare number often means price: "RTX 3060 12GB - 450"
+  const trailing = normalized.match(/(?:[-–—]\s*|\s)(\d{2,4})(?:\s*(?:obo|firm))?$/i);
+  if (trailing) {
+    const n = parseFloat(trailing[1]);
+    if (n >= 25 && n <= 15000) return n;
+  }
+
+  return 0;
 }
 
 function normalizeListingText(text: string): string {
@@ -124,7 +150,14 @@ function expandLine(line: string): string[] {
   }
   for (const { pattern, query } of BOARD_PATTERNS) {
     const m = line.match(pattern);
-    if (m) queries.push(`motherboard ${query.replace("$1", m[1])}`);
+    if (m) {
+      queries.push(`motherboard ${query.replace("$1", m[1])}`);
+      queries.push(query.replace("$1", m[1]));
+    }
+  }
+  for (const { pattern, query } of PSU_PATTERNS) {
+    const m = line.match(pattern);
+    if (m) queries.push(query.replace("$1", m[1]).replace("$2", m[2] ?? ""));
   }
 
   return [...new Set(queries)];
@@ -162,7 +195,7 @@ function detectHints(text: string): ListingHints {
     oemPrebuilt: /\bdell|hp |lenovo|optiplex|pavilion|omen|prebuilt|pre-built\b/.test(
       lower
     ),
-    negotiable: /\bobo|negotiable|firm\b/.test(lower),
+    negotiable: /\bobo|negotiable|or best offer\b/.test(lower),
     urgency: /\bmoving|urgent|today only|need gone\b/.test(lower),
   };
 }
@@ -183,6 +216,50 @@ function assignPart(parts: ComponentMap, match: { id: string; category: string; 
   if (match.category === "case" && !parts.case) parts.case = match as Case;
 }
 
+function tryMatchQuery(
+  q: string,
+  parts: ComponentMap,
+  parsedPartNames: string[]
+): boolean {
+  const fuzzy = fuzzyMatchComponentScored(q, LINE_MATCH_MIN_SCORE);
+  if (fuzzy.length > 0) {
+    const before = countDetectedParts(parts);
+    assignPart(parts, fuzzy[0].component);
+    if (countDetectedParts(parts) > before) {
+      if (!parsedPartNames.includes(fuzzy[0].component.name)) {
+        parsedPartNames.push(fuzzy[0].component.name);
+      }
+      return true;
+    }
+  }
+  if (q.length >= 4) {
+    const search = searchComponents(q);
+    if (search.length > 0) {
+      const before = countDetectedParts(parts);
+      assignPart(parts, search[0]);
+      if (countDetectedParts(parts) > before) {
+        if (!parsedPartNames.includes(search[0].name)) {
+          parsedPartNames.push(search[0].name);
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function splitListingLines(text: string, normalized: string): string[] {
+  const raw = text
+    .split(/\n|•|;|\||\//)
+    .flatMap((segment) =>
+      segment.split(/\s*\+\s*|\s+&\s+|\s+and\s+/i)
+    )
+    .map((l) => l.trim())
+    .filter((l) => l.length > 2 && !/^\$[\d,]+$/.test(l));
+
+  return raw.length > 0 ? raw : [normalized];
+}
+
 function countDetectedParts(parts: ComponentMap): number {
   let n = 0;
   for (const [key, value] of Object.entries(parts)) {
@@ -200,12 +277,7 @@ export function scrapeListingText(text: string): ListingParseResult {
   const unparsedLines: string[] = [];
   const expandedTokens: string[] = [];
 
-  const lines = text
-    .split(/\n|•|;|\||\//)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 2 && !/^\$[\d,]+$/.test(l.trim()));
-
-  const sourceLines = lines.length > 0 ? lines : [normalized];
+  const sourceLines = splitListingLines(text, normalized);
 
   for (const line of sourceLines) {
     if (/^(asking|price|obo|firm|contact)/i.test(line)) continue;
@@ -215,23 +287,8 @@ export function scrapeListingText(text: string): ListingParseResult {
 
     let matched = false;
     for (const q of queries) {
-      const fuzzy = fuzzyMatchComponentScored(q, LINE_MATCH_MIN_SCORE);
-      if (fuzzy.length > 0) {
-        assignPart(parts, fuzzy[0].component);
-        if (!parsedPartNames.includes(fuzzy[0].component.name)) {
-          parsedPartNames.push(fuzzy[0].component.name);
-        }
+      if (tryMatchQuery(q, parts, parsedPartNames)) {
         matched = true;
-        break;
-      }
-      const search = searchComponents(q);
-      if (search.length > 0 && q.length >= 4) {
-        assignPart(parts, search[0]);
-        if (!parsedPartNames.includes(search[0].name)) {
-          parsedPartNames.push(search[0].name);
-        }
-        matched = true;
-        break;
       }
     }
 
@@ -240,7 +297,6 @@ export function scrapeListingText(text: string): ListingParseResult {
     }
   }
 
-  // Strict blob fallback only when line parsing found almost nothing
   if (countDetectedParts(parts) < 2) {
     const blobMatches = fuzzyMatchComponentScored(normalized, BLOB_MATCH_MIN_SCORE);
     for (const { component } of blobMatches.slice(0, 6)) {

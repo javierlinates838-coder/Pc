@@ -86,14 +86,14 @@ export default function DealAnalyzerPage() {
         return quick;
       }
     }
-    return EXAMPLE_LISTING;
+    return "";
   });
   const debouncedListing = useDebouncedValue(listing, 450);
   const { loadBuild } = useBuildStore();
 
   const scrape = useMemo(
     () =>
-      debouncedListing.trim().length > 20
+      debouncedListing.trim().length >= 3
         ? scrapeListingText(debouncedListing)
         : null,
     [debouncedListing]
@@ -138,18 +138,24 @@ export default function DealAnalyzerPage() {
   );
 
   const isParsing = listing !== debouncedListing;
-  const hasAnalysis = deal && recommendation && deal.listingPrice > 0;
+  const hasParts = deal != null && deal.parsedParts.length > 0;
+  const hasPrice = deal != null && deal.listingPrice > 0;
+  const hasFullAnalysis = hasParts && hasPrice && recommendation != null;
   const bestPlatform = platformResults[0];
 
-  const ebayQuery = useMemo(
-    () => (Object.keys(parts).length > 0 ? buildEbaySearchQuery(parts) : ""),
+  const ebaySearch = useMemo(
+    () => (Object.keys(parts).length > 0 ? buildEbaySearchQuery(parts) : null),
     [parts]
   );
   const {
     data: ebayComps,
     loading: ebayLoading,
     error: ebayError,
-  } = useEbayComps(ebayQuery, { enabled: Boolean(hasAnalysis) });
+    refetch: refetchEbay,
+  } = useEbayComps(ebaySearch?.query ?? "", {
+    enabled: hasParts,
+    mode: ebaySearch?.mode,
+  });
 
   const loadSession = () => {
     if (!scrape || !deal) return;
@@ -183,7 +189,7 @@ export default function DealAnalyzerPage() {
         description="Paste any listing — parts, price, and profit update live as you type."
       />
 
-      {hasAnalysis && (
+      {hasFullAnalysis && deal && recommendation && (
         <FlipVerdictHero
           rating={deal.rating}
           verdict={recommendation.verdict}
@@ -216,18 +222,27 @@ export default function DealAnalyzerPage() {
             className="font-mono text-xs sm:text-sm"
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setListing(EXAMPLE_LISTING)}
+            >
+              Try sample listing
+            </Button>
             {isParsing && (
               <span className="text-xs text-[var(--color-muted-foreground)]">
                 Analyzing…
               </span>
             )}
-            {!isParsing && hasAnalysis && (
+            {!isParsing && hasParts && deal && (
               <span className="text-xs text-[var(--color-success)]">
                 {deal.parsedParts.length} parts matched
+                {!hasPrice && " · add a price ($450) for profit math"}
               </span>
             )}
           </div>
-          {hasAnalysis && Object.keys(parts).length > 0 && (
+          {hasParts && Object.keys(parts).length > 0 && (
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <Button onClick={handleLoadBuild} className="w-full sm:w-auto">
                 Open in 3D builder
@@ -244,14 +259,18 @@ export default function DealAnalyzerPage() {
         </Card>
 
         <div className="space-y-4">
-          {hasAnalysis ? (
+          {hasParts && deal ? (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Quick verdict</CardTitle>
+                <CardTitle className="text-base">
+                  {hasFullAnalysis ? "Quick verdict" : "Parts detected"}
+                </CardTitle>
                 <CardDescription>
-                  {bestPlatform
+                  {hasFullAnalysis && bestPlatform
                     ? `${bestPlatform.shortName} nets ${formatCurrency(bestPlatform.netProfit)} after real fees`
-                    : "Profit uses platform-specific fees, not a flat 10%"}
+                    : hasPrice
+                      ? "Profit uses platform-specific fees, not a flat 10%"
+                      : "Add asking price (e.g. $450) to see profit and offer"}
                 </CardDescription>
               </CardHeader>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -265,50 +284,67 @@ export default function DealAnalyzerPage() {
                 </div>
                 <div className="rounded-xl bg-[var(--color-secondary)]/50 p-3">
                   <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    Margin
+                    {hasPrice ? "Margin" : "Asking price"}
                   </p>
                   <p
-                    className={`mt-1 font-bold tabular-nums ${deal.estimatedProfitPotential >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-destructive)]"}`}
+                    className={`mt-1 font-bold tabular-nums ${
+                      hasPrice
+                        ? deal.estimatedProfitPotential >= 0
+                          ? "text-[var(--color-success)]"
+                          : "text-[var(--color-destructive)]"
+                        : "text-[var(--color-muted-foreground)]"
+                    }`}
                   >
-                    {deal.estimatedProfitPotential >= 0 ? "+" : ""}
-                    {formatCurrency(deal.estimatedProfitPotential)}
+                    {hasPrice
+                      ? `${deal.estimatedProfitPotential >= 0 ? "+" : ""}${formatCurrency(deal.estimatedProfitPotential)}`
+                      : "—"}
                   </p>
                 </div>
               </div>
+              {hasParts && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {deal.parsedParts.map((p) => (
+                    <Badge key={p} variant="secondary">
+                      {p}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </Card>
+          ) : debouncedListing.trim().length >= 3 && !isParsing ? (
+            <Card className="border-dashed border-amber-500/30">
+              <CardHeader>
+                <CardTitle className="text-base">No parts matched</CardTitle>
+                <CardDescription>
+                  Try &quot;rtx 3060&quot;, &quot;ryzen 5 5600&quot;, or paste a
+                  fuller listing with specs and price.
+                </CardDescription>
+              </CardHeader>
             </Card>
           ) : (
             <Card className="border-dashed border-[var(--color-primary)]/25">
               <CardHeader>
                 <CardTitle className="text-base">Waiting for listing</CardTitle>
                 <CardDescription>
-                  Paste an ad on the left. Verdict, parts, and platform profit
-                  appear here instantly.
+                  Paste an ad — even short text like &quot;3050 ti 8gb&quot; or
+                  &quot;RTX 3060 $400&quot; works.
                 </CardDescription>
               </CardHeader>
             </Card>
-          )}
-
-          {deal && deal.parsedParts.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {deal.parsedParts.map((p) => (
-                <Badge key={p} variant="secondary">
-                  {p}
-                </Badge>
-              ))}
-            </div>
           )}
         </div>
       </div>
 
       {deal && (
         <div className="space-y-3">
-          {ebayQuery && (
+          {ebaySearch && (
             <EbayCompsPanel
-              query={ebayQuery}
+              query={ebaySearch.query}
               data={ebayComps}
               loading={ebayLoading}
               error={ebayError}
               localEstimate={deal.estimatedResaleValue}
+              onRefresh={refetchEbay}
             />
           )}
 

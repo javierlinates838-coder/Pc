@@ -359,8 +359,12 @@ export const useInventoryStore = create<InventoryStore>()(
               : pc
           ),
         })),
-      removePC: (id) =>
-        set((state) => ({ pcs: state.pcs.filter((pc) => pc.id !== id) })),
+      removePC: (id) => {
+        set((state) => ({ pcs: state.pcs.filter((pc) => pc.id !== id) }));
+        if (useBuildStore.getState().activeInventoryId === id) {
+          useBuildStore.setState({ activeInventoryId: null });
+        }
+      },
     }),
     {
       name: "pc-reseller-inventory",

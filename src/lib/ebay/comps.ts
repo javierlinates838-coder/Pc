@@ -15,25 +15,37 @@ function median(values: number[]): number {
 export function buildEbaySearchQuery(
   parts: ComponentMap,
   mode: "pc" | "part" = "pc"
-): string {
+): { query: string; mode: "pc" | "part" } {
   const gpu = parts.gpu?.name;
   const cpu = parts.cpu?.name;
   const ram = parts.ram?.name;
 
-  if (mode === "part" && gpu) return gpu;
-  if (mode === "part" && cpu) return cpu;
+  if (mode === "part" && gpu) return { query: gpu, mode: "part" };
+  if (mode === "part" && cpu) return { query: cpu, mode: "part" };
+
+  const partCount =
+    (parts.cpu ? 1 : 0) +
+    (parts.gpu ? 1 : 0) +
+    (parts.motherboard ? 1 : 0) +
+    (parts.ram ? 1 : 0) +
+    (parts.psu ? 1 : 0) +
+    (parts.storage?.length ?? 0);
+
+  if (partCount <= 2 && gpu) {
+    return { query: gpu, mode: "part" };
+  }
 
   const tokens: string[] = ["gaming PC"];
   if (gpu) tokens.push(gpu.replace(/NVIDIA |AMD Radeon |GeForce /gi, "").trim());
   if (cpu) tokens.push(cpu.replace(/AMD |Intel /gi, "").trim());
   if (ram) tokens.push(ram);
 
-  return tokens.join(" ").slice(0, 100);
+  return { query: tokens.join(" ").slice(0, 100), mode: "pc" };
 }
 
 export async function fetchEbayComps(
   query: string,
-  options?: { limit?: number; minPrice?: number; maxPrice?: number }
+  options?: { limit?: number; minPrice?: number; maxPrice?: number; mode?: "pc" | "part" }
 ): Promise<EbayCompsResult> {
   const environment = getEbayEnvironment();
   const configured = isEbayConfigured();
@@ -81,6 +93,7 @@ export async function fetchEbayComps(
     usedOnly: true,
     minPrice: options?.minPrice,
     maxPrice: options?.maxPrice,
+    mode: options?.mode,
   });
 
   const prices = listings.map((l) => l.price).sort((a, b) => a - b);

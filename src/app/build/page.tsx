@@ -108,15 +108,19 @@ export default function BuildAnalyzerPage() {
     [currentBuild, flipCosts.purchasePrice]
   );
 
-  const ebayQuery = useMemo(
-    () => (hasParts ? buildEbaySearchQuery(currentBuild) : ""),
+  const ebaySearch = useMemo(
+    () => (hasParts ? buildEbaySearchQuery(currentBuild) : null),
     [currentBuild, hasParts]
   );
   const {
     data: ebayComps,
     loading: ebayLoading,
     error: ebayError,
-  } = useEbayComps(ebayQuery, { enabled: hasParts });
+    refetch: refetchEbay,
+  } = useEbayComps(ebaySearch?.query ?? "", {
+    enabled: hasParts,
+    mode: ebaySearch?.mode,
+  });
 
   const overallCondition =
     entries[0]?.condition ?? ("used" as Condition);
@@ -227,13 +231,14 @@ export default function BuildAnalyzerPage() {
 
               <GameFpsPanel gpu={currentBuild.gpu} />
 
-              {ebayQuery && (
+              {ebaySearch && (
                 <EbayCompsPanel
-                  query={ebayQuery}
+                  query={ebaySearch.query}
                   data={ebayComps}
                   loading={ebayLoading}
                   error={ebayError}
                   localEstimate={financials.listPrice}
+                  onRefresh={refetchEbay}
                 />
               )}
 
@@ -312,6 +317,14 @@ export default function BuildAnalyzerPage() {
               <PartSelector />
             </div>
           </div>
+
+          {hasParts && (
+            <div className="lg:hidden">
+              <Button className="w-full" onClick={() => router.push("/profit")}>
+                Run profit math →
+              </Button>
+            </div>
+          )}
 
           {hasParts && (
             <div className="hidden lg:block">

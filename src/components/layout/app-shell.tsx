@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="font-semibold text-[var(--color-primary)]">205+ parts</span>
             {" · "}12 platforms · 3D rig builder
             <br />
-            Local engine — no API keys needed
+            Local engine — works offline · eBay comps optional
           </p>
         </div>
       </aside>

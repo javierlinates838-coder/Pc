@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim();
   const minPrice = request.nextUrl.searchParams.get("minPrice");
   const maxPrice = request.nextUrl.searchParams.get("maxPrice");
+  const mode = request.nextUrl.searchParams.get("mode") === "part" ? "part" : "pc";
 
   if (!q) {
     return NextResponse.json({ error: "Missing query parameter q" }, { status: 400 });
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
     const result = await fetchEbayComps(q, {
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      mode,
     });
 
     return NextResponse.json(result, {
