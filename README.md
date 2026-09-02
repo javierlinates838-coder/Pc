@@ -67,9 +67,11 @@ Provider interfaces are ready for:
 
 ### eBay API setup
 
-1. Create a keyset at [developer.ebay.com](https://developer.ebay.com/my/keys) (start with **Sandbox**)
+1. Create a **Production** keyset at [developer.ebay.com](https://developer.ebay.com/my/keys)
 2. Copy `.env.example` to `.env.local` and fill in:
-   - `EBAY_CLIENT_ID` — your App ID
-   - `EBAY_CLIENT_SECRET` — your Cert ID
-   - `EBAY_ENVIRONMENT=sandbox` (switch to `production` when ready)
+   - `EBAY_CLIENT_ID` — your Production App ID
+   - `EBAY_CLIENT_SECRET` — your Production Cert ID
+   - `EBAY_ENVIRONMENT=production`
 3. Restart the dev server — Deal and Build pages will show live eBay comps
+
+**On Vercel:** Project → Settings → Environment Variables → add the same three vars → Redeploy.

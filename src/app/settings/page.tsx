@@ -209,10 +209,11 @@ export default function SettingsPage() {
               Setup (server env vars)
             </p>
             <ol className="mt-2 list-decimal space-y-1 pl-4">
-              <li>Create a keyset at developer.ebay.com (Sandbox first)</li>
+              <li>Create a <strong>Production</strong> keyset at developer.ebay.com</li>
               <li>Copy App ID → <code className="text-[var(--color-primary)]">EBAY_CLIENT_ID</code></li>
               <li>Copy Cert ID → <code className="text-[var(--color-primary)]">EBAY_CLIENT_SECRET</code></li>
-              <li>Set <code className="text-[var(--color-primary)]">EBAY_ENVIRONMENT=sandbox</code> then redeploy</li>
+              <li>Set <code className="text-[var(--color-primary)]">EBAY_ENVIRONMENT=production</code></li>
+              <li>Redeploy (Vercel) or restart <code>npm run dev</code></li>
             </ol>
             <p className="mt-3">
               See <code>.env.example</code> in the repo. Keys stay server-side —
